@@ -11,6 +11,7 @@ from fhir.resources.extension import Extension
 from fhir.resources.period import Period
 from scripts.enum_models import AdmissionPathway, DischargeDestination, DischargeFacilityDepartment, DischargeFacilityType, FirstContactPlace, Locations
 from scripts.helpers import get_encounter_class
+from scripts.utils import parse_datetime
 
 
 def build_stroke_encounter_profile(

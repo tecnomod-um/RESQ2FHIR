@@ -10,7 +10,7 @@ from enum_models import Sex
 from utils import  TransformError
 
 
-def build_Patient(patient_id: str, patient_sex: Sex) -> Patient:
+def build_Patient(patient_id: str, patient_sex: Sex | None) -> Patient:
     """
     Build a FHIR Patient resource from raw data.
     

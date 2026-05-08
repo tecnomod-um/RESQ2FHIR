@@ -304,7 +304,7 @@ def build_observation_carotid_stenosis(patient_ref: str, encounter_ref: str, car
         code="exam",
         display="Exam"
     )
-    obs.category = CodeableConcept(coding=[coding_category])
+    obs.category = [CodeableConcept(coding=[coding_category])]
 
 
     if carotid_stenosis is not None:

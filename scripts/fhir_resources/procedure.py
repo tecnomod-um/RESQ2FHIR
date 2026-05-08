@@ -222,9 +222,9 @@ def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, p
     procedure.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-swallow-procedure-profile"])
     
     if swallowing_screening_done is True:
-        if swallowing_screening_type is None:
-            swallowing_type_coding = SwallowingScreeningType.UNKNOWN.to_coding()
-        else:
+        if swallowing_screening_type is not None:
+        #     swallowing_type_coding = SwallowingScreeningType.OTHER.to_coding()
+        # else:
             swallowing_type_coding = swallowing_screening_type.to_coding()
 
         procedure.code = CodeableConcept(coding=[swallowing_type_coding])
