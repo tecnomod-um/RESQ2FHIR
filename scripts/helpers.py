@@ -4,7 +4,7 @@ Domain-specific helper functions for stroke data extraction.
 
 import pandas as pd
 from enum_models import (
-    BodySites, FirstContactPlace, Laterality, StrokeEtiology, Medications, BleedingReason, RiskFactor
+    BodySites, DischargeMedication, FirstContactPlace, Laterality, StrokeEtiology, Medications, BleedingReason, RiskFactor
 )
 
 
@@ -64,7 +64,7 @@ def get_before_onset_medications(raw: dict):
         "before_onset_heparin": Medications.HEPARIN,
         "before_onset_other_anticoagulant": Medications.OTHER_ANTICOAGULANT,
         "before_onset_other_antiplatelet": Medications.OTHER_ANTIPLATELET,
-        "before_onset_other": Medications.OTHER,
+        "before_onset_other": DischargeMedication.OTHER,
         "before_onset_plasugrel": Medications.PLASUGREL,
         "before_onset_rivaroxaban": Medications.RIVAROXABAN,
         "before_onset_statin": Medications.STATIN,
@@ -99,7 +99,7 @@ def get_on_discharge_medications(raw: dict):
         "discharge_asa": Medications.ASA,
         "discharge_clopidogrel": Medications.CLOPIDOGREL,
         "discharge_contraception": Medications.CONTRACEPTION,
-        "discharge_other": Medications.OTHER,
+        "discharge_other": DischargeMedication.OTHER,
         "discharge_statin": Medications.STATIN,
         "discharge_warfarin": Medications.WARFARIN,
         #"discharge_any_antithrombotics": Medications.ANTITHROMBOTIC,
