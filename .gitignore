@@ -1,0 +1,6 @@
+.venv/
+workdir/
+scripts/__pycache__/
+scripts/fhir_resources/__pycache__/
+.vscode/
+data/
