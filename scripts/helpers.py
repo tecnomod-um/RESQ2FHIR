@@ -3,7 +3,7 @@ Domain-specific helper functions for stroke data extraction.
 """
 
 import pandas as pd
-from enum_models import (
+from scripts.enum_models import (
     BodySites, DischargeMedication, FirstContactPlace, Laterality, StrokeEtiology, Medications, BleedingReason, RiskFactor
 )
 

@@ -8,7 +8,7 @@ Observations, Procedures, and Medications.
 Usage:
     python transform.py --input data.csv --outdir /path/to/output
 
-The script generates one JSON file per patient (case_id) in the output directory.
+The script generates one JSON file per patient (case) in the output directory.
 """
 
 import argparse
@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 import pandas as pd
-from fhir.resources.bundle import Bundle, BundleEntry, BundleEntryRequest
+from fhir.resources.bundle import Bundle 
 import uuid
 from decimal import Decimal
 import numpy as np
@@ -27,7 +27,7 @@ import datetime as dt
 
 # Import FHIR builders
 from data_modeling import transform_to_fhir
-from utils import TransformError, safe_get, safe_get_bool
+from utils import TransformError 
 
 
 logger = logging.getLogger(__name__)
@@ -78,13 +78,13 @@ def transform_row_to_bundle(row: pd.Series, row_idx: int) -> Optional[Bundle]:
     """
     try:
         raw_dict = row_to_dict(row)
-        file_id = str(raw_dict.get("case_id", f"case_{row_idx}"))
+        file_id = str(raw_dict.get("case", f"case_{row_idx}"))
         
         if not file_id or file_id == "None":
-            logger.warning(f"Row {row_idx}: Missing case_id, skipping")
+            logger.warning(f"Row {row_idx}: Missing case, skipping")
             return None
         
-        logger.debug(f"Transforming row {row_idx}: case_id={file_id}")
+        logger.debug(f"Transforming row {row_idx}: case={file_id}")
         
         # Call the main transformation orchestrator
         bundle = transform_to_fhir(file_id, raw_dict)
@@ -272,9 +272,9 @@ def process_csv(csv_path: Path, output_dir: Path, verbose: bool = False):
             continue
         
         try:
-            # Get case_id for filename
-            case_id = row.get("case_id", f"case_{idx}")
-            output_file = output_dir / f"{case_id}.json"
+            # Get case for filename
+            case = row.get("case", f"case_{idx}")
+            output_file = output_dir / f"{case}.json"
             
             # Serialize bundle
             bundle_dict = bundle_to_json_dict(bundle)
@@ -308,7 +308,7 @@ def process_csv(csv_path: Path, output_dir: Path, verbose: bool = False):
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(bundle_safe, f, ensure_ascii=False, indent=2)
             
-            logger.info(f"✓ {idx}/{total_rows}: {case_id} → {output_file.name}")
+            logger.info(f"✓ {idx}/{total_rows}: {case} → {output_file.name}")
             successful += 1
             
         except Exception as e:

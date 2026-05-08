@@ -1,8 +1,7 @@
-from enum import Enum, unique
+from enum import Enum
 import json
 from typing import TypeVar, overload
 from fhir.resources.coding import Coding
-from uvicorn import logging
 
 TConceptEnum = TypeVar("TConceptEnum", bound="ConceptEnum")
 

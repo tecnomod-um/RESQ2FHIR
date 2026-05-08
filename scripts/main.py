@@ -6,8 +6,7 @@ import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Any, Dict
-
+from typing import Optional, List
 import httpx
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import JSONResponse

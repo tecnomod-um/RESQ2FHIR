@@ -58,7 +58,6 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
     Raises:
         TransformError: If required data is missing or invalid
     """
-    print(raw)
     patient_ref = get_uuid()
     encounter_ref = get_uuid()
     observation_vital_signs_ref = ""
@@ -741,8 +740,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                 observation_hbp = build_highest_systolic_pressure_after24h_observation(patient_ref=patient_ref,
                                                                 encounter_ref=encounter_ref,
                                                                 highest_systolic_pressure_after24h=highest_sys_bp_post_24h)
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_hbp, request=BundleEntryRequest(method="POST", url="Observation")))
-
+                entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_hbp, request=BundleEntryRequest(method="POST", url="Observation")))
             
             post_stroke_any = safe_get_bool(raw, "post_stroke_any", required=True) # Check if any post-treatment findings are present in raw data, not required
             if post_stroke_any:
