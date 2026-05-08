@@ -126,10 +126,10 @@ def build_medicationAdministration_paracetamol_on_fever(patient_ref:str, encount
         status="completed",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/paracetamol-on-fever-medicationAdministration-profile"])
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/paracetamol-on-fever-medicationAdministration-profile"]),
+        medication = CodeableReference(concept=CodeableConcept(coding=[Medications.PARACETAMOL.to_coding()])),
         )
     
-    medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[Medications.PARACETAMOL.to_coding()]))
     medicationAdministration.reason = [CodeableReference(reference=Reference(reference=fever_ref))]
     extension_list = []
 
@@ -156,10 +156,12 @@ def build_no_anticoagulant_reversal_medicationAdministration(patient_ref:str, en
     medicationAdministration = MedicationAdministration(
         status="not-done",
         subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref))
+        encounter=Reference(reference=encounter_ref),
+        medication=CodeableReference(concept=CodeableConcept(coding=[Medications.ANTICOAGULANT_REVERSAL.to_coding()]))
+        )
+    
     
     medicationAdministration.statusReason = [CodeableConcept(coding=[no_anticoagulant_reversal_reason.to_coding()])]
-    medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[Medications.ANTICOAGULANT_REVERSAL.to_coding()]))
     return medicationAdministration
 
 
@@ -181,10 +183,10 @@ def build_insulin_on_hyperglycemia(patient_ref:str, encounter_ref:str, observati
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=observation_ref))],
-        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/insulin-on-hyperglycemia-medicationAdministration-profile"])
+        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/insulin-on-hyperglycemia-medicationAdministration-profile"]),
+        medication = CodeableReference(concept=CodeableConcept(coding=[Medications.INSULIN.to_coding()]))
         )
     
-    medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[Medications.INSULIN.to_coding()]))
 
     extension_list = []
     if insulin_timing is not None:
@@ -208,10 +210,11 @@ def build_no_anticoagulant_discharge_medicationAdministration(patient_ref:str, e
     medicationAdministration = MedicationAdministration(
         status="not-done",
         subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref))
+        encounter=Reference(reference=encounter_ref),
+        medication=CodeableReference(concept=CodeableConcept(coding=[Medications.ANTICOAGULANT.to_coding()]))
+        )
     
     medicationAdministration.statusReason = [CodeableConcept(coding=[no_anticoagulant_discharge_reason.to_coding()])]
-    medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[DischargeMedication.ANTICOAGULANT.to_coding()]))
     return medicationAdministration
 
 def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str, condition_ref: str | None = None, procedure_ref:str | None = None, medication_range_timing: Nimodipinetiming | None = None) -> MedicationAdministration:
@@ -231,11 +234,9 @@ def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str
         status="completed",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/nimodipine-medicationAdministration-profile"])
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/nimodipine-medicationAdministration-profile"]),
+        medication=CodeableReference(concept=CodeableConcept(coding=[Medications.NIMODIPINE.to_coding()]))
         )
-    
-    medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[Medications.NIMODIPINE.to_coding()]))
-
 
 
     reason_list = []

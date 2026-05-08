@@ -60,6 +60,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
     """
     patient_ref = get_uuid()
     encounter_ref = get_uuid()
+    medicationAdministration_reversal_ref = get_uuid()
     observation_vital_signs_ref = ""
     procedure_imaging_ref = ""
     procedure_ich_treatment_ref = ""
@@ -350,7 +351,6 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
         ############################ 2.2.2.4 Thombolysis administration reversal (MedicationAdministration) ######################################
 
                 medicationAdministration_reversal = safe_get(raw, "ivt_antidote_given", required = False) # Check if thrombolysis reversal medication administration is present in raw data, not required
-                medicationAdministration_reversal_ref = get_uuid()
 
                 if medicationAdministration_reversal is not None:
                     anticoagulant_reversal_timestamp = safe_get(raw, "anticoagulant_reversal_timestamp", required=False) # Check if thrombolysis reversal medication administration timestamp is present in raw data, not required
@@ -401,7 +401,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                 observation_mtici_ref = get_uuid()
                 entries.append(BundleEntry(fullUrl=observation_mtici_ref, resource=observation_mtici, request=BundleEntryRequest(method="POST", url="Observation")))
 
-            reperfusion_timestamp = safe_get(raw, "reperfusion_timestamp", required=True) # Check if reperfusion timestamp is present in raw data, not required
+            reperfusion_timestamp = safe_get(raw, "reperfusion_timestamp", required=False) # Check if reperfusion timestamp is present in raw data, not required
             procedure_thrombectomy = build_thrombectomy_procedure(patient_ref=patient_ref,
                                                                 encounter_ref=encounter_ref,
                                                                 condition_ref=condition_stroke_ref,
@@ -742,7 +742,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                 highest_systolic_pressure_after24h=highest_sys_bp_post_24h)
                 entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_hbp, request=BundleEntryRequest(method="POST", url="Observation")))
             
-            post_stroke_any = safe_get_bool(raw, "post_stroke_any", required=True) # Check if any post-treatment findings are present in raw data, not required
+            post_stroke_any = safe_get_bool(raw, "post_stroke_any", required=False) # Check if any post-treatment findings are present in raw data, not required
             if post_stroke_any:
                 condition_list = build_post_stroke_conditions(patient_ref=patient_ref,
                                                             encounter_ref=encounter_ref,

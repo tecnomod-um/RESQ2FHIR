@@ -314,10 +314,10 @@ class BleedingReason(ConceptEnum):
     UNDETERMINED = ("Undetermined", {"code": "373068000", "display": "Undetermined (qualifier value)", "system": "http://snomed.info/sct"})
 
 class AtrialFibrillationOrFlutter(ConceptEnum):
-    KNOWN_AF = ("1.0", {"code": "410515003", "display": "Known present (qualifier value)", "system": "http://snomed.info/sct"})
-    DETECTED = ("2.0", {"code": "410515003", "display": "Known present (qualifier value)", "system": "http://snomed.info/sct"})
-    NO_AF = ("3.0", {"code": "410516002", "display": "Known absent (qualifier value)", "system": "http://snomed.info/sct"})
-    NOT_SCREENED = ("4.0", {"code": "261665006", "display": "Unknown (qualifier value)", "system": "http://snomed.info/sct"})
+    KNOWN_AF = ("1", {"code": "410515003", "display": "Known present (qualifier value)", "system": "http://snomed.info/sct"})
+    DETECTED = ("2", {"code": "410515003", "display": "Known present (qualifier value)", "system": "http://snomed.info/sct"})
+    NO_AF = ("3", {"code": "410516002", "display": "Known absent (qualifier value)", "system": "http://snomed.info/sct"})
+    NOT_SCREENED = ("4", {"code": "261665006", "display": "Unknown (qualifier value)", "system": "http://snomed.info/sct"})
 
 
 class VteProcedures(ConceptEnum):
