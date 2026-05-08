@@ -4,17 +4,17 @@ Domain-specific helper functions for stroke data extraction.
 
 import pandas as pd
 from enum_models import (
-    BodySites, Laterality, Locations, StrokeEtiology, Medications, BleedingReason, RiskFactor
+    BodySites, FirstContactPlace, Laterality, StrokeEtiology, Medications, BleedingReason, RiskFactor
 )
 
 
-def get_encounter_class(first_contact_place):
+def get_encounter_class(first_contact_place: FirstContactPlace):
     """Determine encounter class based on first contact place."""
-    if first_contact_place == Locations.EMERGENCY:
+    if first_contact_place == FirstContactPlace.EMERGENCY:
         return "IMP", "inpatient encounter"  # Inpatient encounter
-    elif first_contact_place == Locations.OUTPATIENT or first_contact_place == Locations.RADIOLOGY:
+    elif first_contact_place == FirstContactPlace.OUTPATIENT or first_contact_place == FirstContactPlace.RADIOLOGY:
         return "AMB", "ambulatory"  # Ambulatory encounter
-    elif first_contact_place == Locations.OTHER:
+    elif first_contact_place == FirstContactPlace.OTHER:
         return "OTH", "other"  # Other encounter
     else:
         raise ValueError(f"Unknown first contact place: {first_contact_place.id}")

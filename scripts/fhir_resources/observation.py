@@ -467,7 +467,7 @@ def build_observation_Af_or_F(patient_ref: str, encounter_ref: str, atrial_fibri
 #     )
 
 
-def build_observation_age(age: int, patient_ref: str, encounter_ref: str) -> Observation:
+def build_observation_age(age: int | None, patient_ref: str, encounter_ref: str) -> Observation:
     """
     Build a FHIR Observation resource for patient age.
     
@@ -482,7 +482,7 @@ def build_observation_age(age: int, patient_ref: str, encounter_ref: str) -> Obs
     obs = Observation(
         code=CodeableConcept(coding=[(FunctionalScore.AGE.to_coding())]),
         status="final",
-        valueInteger=int(age)
+        valueInteger=int(age) if age is not None else None
     )
     obs.subject = Reference(reference=patient_ref)
     obs.encounter = Reference(reference=encounter_ref)
