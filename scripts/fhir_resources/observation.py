@@ -12,7 +12,7 @@ from fhir.resources.range import Range
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.extension import Extension
 from enum_models import (
-    AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ObservationMethods, ProcedureNotDoneReason, RiskFactor, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
+    AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ManagementAppointment, ObservationMethods, ProcedureNotDoneReason, RiskFactor, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
     AssessmentContext, FunctionalScore, MTiciScore, SpecificFinding, UnitofMeasurement, TimingMetricCodes
 )
 from fhir.resources.meta import Meta 
@@ -1171,7 +1171,7 @@ def build_observation_cholesterol(cholesterol: float, patient_ref: str, encounte
 
     return observation
 
-def build_observation_glasgow_coma_scale(patient_ref: str, encounter_ref: str,gcs_score: int) -> Observation:
+def build_observation_glasgow_coma_scale_score(patient_ref: str, encounter_ref: str,gcs_score: int) -> Observation:
     """
     Build a FHIR Observation resource for Glasgow Coma Scale score.
     
@@ -1187,7 +1187,7 @@ def build_observation_glasgow_coma_scale(patient_ref: str, encounter_ref: str,gc
         status="final")
     
 
-    gcs_coding = GlasgowComaScale.GCS.to_coding()
+    gcs_coding = GlasgowComaScale.GCScore.to_coding()
     code_gcs = CodeableConcept(coding=[gcs_coding])
     category_coding = Coding(
         system="http://terminology.hl7.org/CodeSystem/observation-category",
@@ -1195,21 +1195,48 @@ def build_observation_glasgow_coma_scale(patient_ref: str, encounter_ref: str,gc
         display="Exam"
     )
     category_code = CodeableConcept(coding=[category_coding])
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/glasgow-coma-scale-observation-profile"])
+    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/glasgow-coma-score-observation-profile"])
     observation.code = code_gcs
     observation.category = [category_code]
     observation.valueInteger = gcs_score
     observation.subject = Reference(reference=patient_ref)
     observation.encounter = Reference(reference=encounter_ref)
-    if gcs_score > 3 and gcs_score <= 7:
-        observation.interpretation = [CodeableConcept(coding=[GCSScore.GT_3_LE_8.to_coding()])]
-    elif gcs_score > 7 and gcs_score <= 12:
-        observation.interpretation = [CodeableConcept(coding=[GCSScore.GT_8_LE_12.to_coding()])]
-    elif gcs_score > 12 and gcs_score <= 15:
-        observation.interpretation = [CodeableConcept(coding=[GCSScore.GT_12_LE_15.to_coding()])]
 
     return observation
+
+def build_observation_glasgow_coma_scale_level(patient_ref: str, encounter_ref: str, gcs_obs_ref: str, gcs_level: GCSScore) -> Observation:
+    """
+    Build a FHIR Observation resource for Glasgow Coma Scale level.
     
+    Args:
+        patient_ref: Reference to the Patient resource
+        encounter_ref: Reference to the Encounter resource
+        gcs_obs_ref: Reference to the Glasgow Coma Scale score observation
+        gcs_level: Glasgow Coma Scale level (e.g., mild, moderate, severe)
+    Returns:
+        Observation resource for Glasgow Coma Scale level
+    """
+    observation = Observation(
+        code=CodeableConcept(),
+        status="final")
+    
+
+    category_coding = Coding(
+        system="http://terminology.hl7.org/CodeSystem/observation-category",
+        code="exam",
+        display="Exam"
+    )
+    category_code = CodeableConcept(coding=[category_coding])
+    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/glasgow-coma-scale-observation-profile"])
+    observation.code = CodeableConcept(coding=[GlasgowComaScale.GCS.to_coding()])
+    observation.category = [category_code]
+    observation.valueCodeableConcept = CodeableConcept(coding=[gcs_level.to_coding()])
+    observation.subject = Reference(reference=patient_ref)
+    observation.encounter = Reference(reference=encounter_ref)
+    observation.derivedFrom = [Reference(reference=gcs_obs_ref)]
+
+    return observation
+
 def build_observation_inr(patient_ref: str, encounter_ref: str, inr_value: int | None, inr_mode: str | None) -> Observation:
     """
     Build a FHIR Observation resource for INR (International Normalized Ratio) value.
@@ -1812,7 +1839,7 @@ def build_observation_ge10(patient_ref: str, encounter_ref: str, ge10: bool) -> 
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation
 
-def build_observation_highest_hyperglycemia_value(patient_ref: str, encounter_ref: str, observation_measurement_ref: list[str] | None, highest_hyperglycemia_value: int | str| None ) -> Observation:
+def build_observation_highest_hyperglycemia_value(patient_ref: str, encounter_ref: str, observation_measurement_ref: list[str] | None, highest_hyperglycemia_value: int ) -> Observation:
     """
     Build a FHIR Observation resource for highest hyperglycemia value.
     
@@ -1830,10 +1857,7 @@ def build_observation_highest_hyperglycemia_value(patient_ref: str, encounter_re
         encounter=Reference(reference=encounter_ref),
         hasMember=[Reference(reference=ref) for ref in observation_measurement_ref] if observation_measurement_ref is not None else None
     )
-    if isinstance(highest_hyperglycemia_value, int):
-        observation.valueInteger = highest_hyperglycemia_value
-    elif isinstance(highest_hyperglycemia_value, str):
-        observation.valueString = highest_hyperglycemia_value
+    observation.valueQuantity = Quantity(value=Decimal(highest_hyperglycemia_value) , unit=UnitofMeasurement.MMOL_L.display, system=UnitofMeasurement.MMOL_L.system, code=UnitofMeasurement.MMOL_L.code) 
 
     observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/highest-hyperglycemia-value-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
@@ -1905,5 +1929,28 @@ def build_thrive_score_observation(patient_ref: str, encounter_ref: str, thrive_
     )
     observation.valueInteger = thrive_score
     observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"])
+    observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
+    return observation
+
+def build_appointment_observation(patient_ref: str, encounter_ref: str, appointment_management: ManagementAppointment) -> Observation:
+    """
+    Build a FHIR Observation resource for appointment date.
+    
+    Args:
+        patient_ref: Reference to the Patient resource
+        encounter_ref: Reference to the Encounter resource
+        appointment_management: ManagementAppointment resource
+    Returns:
+        Observation resource for appointment meeting recommendations
+    """
+
+    observation = Observation(
+        code=CodeableConcept(coding=[ManagementAppointment.APPOINTMENT.to_coding()]),
+        status="final",
+        subject=Reference(reference=patient_ref),
+        encounter=Reference(reference=encounter_ref),
+        valueCodeableConcept=CodeableConcept(coding=[appointment_management.to_coding()])
+    )
+    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/appointment-management-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation

@@ -71,7 +71,6 @@ def build_stroke_encounter_profile(
     location_list = []
     # Set the class of the encounter to inpatient
     if first_location_ref is not None and first_location_ref != "":
-        print(f"Adding first contact place location reference: {first_location_ref}")
         location_list.append(EncounterLocation(location=Reference(reference=first_location_ref)))
 
         encounter_class_code, encounter_class_display = get_encounter_class(first_contact_place)

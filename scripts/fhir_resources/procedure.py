@@ -198,7 +198,7 @@ def build_endarterectomy_procedure(patient_ref: str, encounter_ref: str, diagnos
 
     return procedure
 
-def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, practitioner_role_ref: str, swallowing_screening_done: bool | None = False, swallowing_screening_type: SwallowingScreeningType | None = None, swallowing_screening_timing: SwallowingScreeningTiming | None = None) -> Procedure:
+def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, practitioner_role_ref: str | None, swallowing_screening_done: bool | None = False, swallowing_screening_type: SwallowingScreeningType | None = None, swallowing_screening_timing: SwallowingScreeningTiming | None = None) -> Procedure:
     """
     Build a FHIR Procedure resource for swallowing screening.
     
@@ -226,9 +226,10 @@ def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, p
         #     swallowing_type_coding = SwallowingScreeningType.OTHER.to_coding()
         # else:
             swallowing_type_coding = swallowing_screening_type.to_coding()
+            procedure.code = CodeableConcept(coding=[swallowing_type_coding])
 
-        procedure.code = CodeableConcept(coding=[swallowing_type_coding])
-        procedure.performer = [ProcedurePerformer(actor=Reference(reference=practitioner_role_ref))]
+        if practitioner_role_ref is not None:
+            procedure.performer = [ProcedurePerformer(actor=Reference(reference=practitioner_role_ref))]
         procedure.status = "completed"
     elif swallowing_screening_done is False:
         procedure.status = "not-done"

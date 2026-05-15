@@ -93,6 +93,15 @@ def _count_issues(outcome: dict):
             sev[s] += 1
     return sev
 
+def _without_information_issues(outcome: dict) -> dict:
+    filtered = dict(outcome)
+    filtered["issue"] = [
+        issue for issue in (outcome.get("issue") or [])
+        if (issue.get("severity") or "").lower() != "information"
+    ]
+    filtered.pop("text", None)
+    return filtered
+
 async def _run_converter(input_path: Path, out_dir: Path) -> int:
     """
     Runs the external converter. It must create *.json (FHIR Bundles) inside out_dir.
@@ -222,6 +231,7 @@ async def create_job_from_csv(
     totals = {"fatal": 0, "error": 0, "warning": 0, "information": 0}
     rows = []
     for p, outcome in results:
+        outcome = _without_information_issues(outcome)
         # guarda el OperationOutcome
         (oo_dir / f"{p.stem}.oo.json").write_text(json.dumps(outcome, ensure_ascii=False), encoding="utf-8")
         sev = _count_issues(outcome)

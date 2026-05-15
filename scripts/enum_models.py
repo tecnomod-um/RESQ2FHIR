@@ -18,7 +18,7 @@ class ConceptEnum(Enum):
 
     def __new__(cls, id: str, value: dict):
         obj = object.__new__(cls)
-        obj._value_ = value      # <-- aquí vive el dict
+        obj._value_ = (id, value["code"], value["display"], value["system"])
         obj.id = id
         obj.code    = value["code"]
         obj.display = value["display"]
@@ -44,31 +44,31 @@ class ConceptEnum(Enum):
         normalized_input = id_str
         if isinstance(normalized_input, str):
             normalized_input = normalized_input.strip()
-            # Accept values like "MTiciScore.TWO_C" by taking the tail.
-            if "." in normalized_input:
-                normalized_input = normalized_input.split(".")[-1]
-            # Normalize numeric-like strings such as "2.0" -> "2".
+
+        candidates = [normalized_input]
+
+        if isinstance(normalized_input, str):
+            # Normalize numeric-like strings such as "2.0"-> "2"before
+            # treating dots as enum qualifiers like "MTiciScore.TWO_C".
             try:
                 as_float = float(normalized_input)
                 if as_float.is_integer():
-                    normalized_input = str(int(as_float))
-            except ValueError:
-                pass
+                    candidates.append(str(int(as_float)))
+                    candidates.append(int(as_float))
+            except (TypeError, ValueError):
+                if "."in normalized_input:
+                    candidates.append(normalized_input.split(".")[-1])
 
         for m in cls:
+            for candidate in candidates:
+                if isinstance(candidate, str) and m.id.lower() == candidate.lower():
+                    return m
 
-            if isinstance(normalized_input, str):
-                if m.id.lower() == normalized_input.lower():
-                    return m
-                
-            if isinstance(normalized_input, int):
-                if int(m.id) == int(normalized_input):
-                    return m
-                
-            if isinstance(normalized_input, float):
-                if float(m.id) == float(normalized_input):
-                    return m
-            
+                try:
+                    if float(m.id) == float(candidate):
+                        return m
+                except (TypeError, ValueError):
+                    pass
 
         raise KeyError(f"{cls.__name__}: id not found -> {id_str}")
     
@@ -78,7 +78,8 @@ class ConceptEnum(Enum):
         if id_str is None:
             return dict()
         else:
-            return cls.by_id(id_str).value
+            member = cls.by_id(id_str)
+            return {"code": member.code, "display": member.display, "system": member.system}
     
     @classmethod
     def json_by_id(cls, id_str: str) -> str:
@@ -94,9 +95,9 @@ class ConceptEnum(Enum):
         return coding
 
 class Sex(ConceptEnum):
-    MALE   = ("1", {"code" : "248153007", "display": "Male (finding)", "system": "http://snomed.info/sct"})
-    FEMALE = ("2", {"code" : "248152002", "display": "Female (finding)", "system": "http://snomed.info/sct"})
-    OTHER  = ("3", {"code" : "32570681000036106", "display": "Indeterminate sex (finding)", "system": "http://snomed.info/sct"})
+    MALE   = ("1", {"code": "248153007", "display": "Male (finding)", "system": "http://snomed.info/sct"})
+    FEMALE = ("2", {"code": "248152002", "display": "Female (finding)", "system": "http://snomed.info/sct"})
+    OTHER  = ("3", {"code": "32570681000036106", "display": "Indeterminate sex (finding)", "system": "http://snomed.info/sct"})
 
 class OccupationalTherapy(ConceptEnum): # Also Physiotherapy , SpeechTherapy
     YES = ("1", {"code": "yes", "display": "Yes", "system": "http://snomed.info/sct"})
@@ -118,7 +119,7 @@ class AdmissionDepartment(ConceptEnum):
     NEUROSURGERY = ("2", {"code": "NS", "display": "Neurosurgery unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     CRITICAL_CARE_ICU = ("3", {"code": "ICU", "display": "Intensive Care Unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     INTERNAL_MEDICINE = ("4", {"code": "GIM", "display": "General internal medicine clinic", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
-    OTHER = ("5", {"code": "other", "display": "Other Department", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
+    OTHER = ("5", {"code": "other", "display": "Other Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})
 
 
 class AdmissionPathway(ConceptEnum): # Also ArrivalMode
@@ -157,7 +158,7 @@ class CarotidStenosisLevel(ConceptEnum):
 
 class GCSScore(ConceptEnum):
     GT_3_LE_8 = ("1", {"code": "24484000", "display": "Severe (qualifier value)", "system": "http://snomed.info/sct"})
-    GT_8_LE_12 = ("2", {"code": "1255665007", "display": " Moderate (qualifier value) ", "system": "http://snomed.info/sct"})
+    GT_8_LE_12 = ("2", {"code": "1255665007", "display": "Moderate (qualifier value)", "system": "http://snomed.info/sct"})
     GT_12_LE_15 = ("3", {"code": "255604002", "display": "Mild (qualifier value)", "system": "http://snomed.info/sct"})
 
 class HemorrhagicTransformationType(ConceptEnum):
@@ -201,7 +202,7 @@ class IvtApplicationDepartment(ConceptEnum):
     RADIOLOGY = ("1", {"code": "HRAD", "display": "radiology unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     ICU = ("2", {"code": "ICU", "display": "Intensive Care Unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     EMERGENCY= ("3", {"code": "ER", "display": "Emergency room", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
-    OTHER = ("4", {"code": "other", "display": "Other Department", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})    
+    OTHER = ("4", {"code": "other", "display": "Other Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})    
 
 class IvtDrug(ConceptEnum):
     ALTEPLASE = ("Alteplase", {"code": "387152000", "display": "Alteplase (substance)", "system": "http://snomed.info/sct"})
@@ -217,7 +218,7 @@ class Locations(ConceptEnum):
     ICU = ("Critical care/icu", {"code": "ICU", "display": "Intensive Care Unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     NEUROSURGERY = ("Neurosurgery", {"code": "NS", "display": "Neurosurgery unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     INTERNAL_MEDICINE = ("Internal Medicine", {"code": "GIM", "display": "General internal medicine clinic", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
-    OTHER = ("other", {"code": "other", "display": "Other Department", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})    
+    OTHER = ("other", {"code": "other", "display": "Other Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})    
 
 class FirstHospital(ConceptEnum):
     TRUE = ("True", {"code": "true", "display": "True", "system": "http://tecnomod-um.org/StructureDefinition/first-hospital-ext"})
@@ -279,7 +280,7 @@ class StrokeEtiology(ConceptEnum):
 class StrokeEtiologyOther(ConceptEnum):
     VASCULITIS = ("1", {"code": "31996006", "display": "Vasculitis (disorder)", "system": "http://snomed.info/sct"})
     DISSECTION = ("2", {"code": "122459003", "display": "Dissection of artery (disorder)", "system": "http://snomed.info/sct"})
-    COAGULATION_DISORDER = ("3", {"code": "coagulation-disorder", "display": "Coagulation system disorder ", "system": "http://tecnomod-um.org/CodeSystem/stroke-etiology-other-cs"})
+    COAGULATION_DISORDER = ("3", {"code": "coagulation-disorder", "display": "Coagulation system disorder", "system": "http://tecnomod-um.org/CodeSystem/stroke-etiology-other-cs"})
     HEMATOLOGICAL_DISEASE = ("4", {"code": "hematological-disease", "display": "Hematological disease", "system": "http://tecnomod-um.org/CodeSystem/stroke-etiology-other-cs"})
     FIBROMUSCULAR_DYSPLASIA = ("5", {"code": "fibromuscular-dysplasia", "display": "Fibromuscular dysplasia", "system": "http://tecnomod-um.org/CodeSystem/stroke-etiology-other-cs"})
     REVERSIBLE_CEREBRAL_VASOCONSTRICTION_SYNDROME = ("6", {"code": "703218000", "display": "Cerebral vasoconstriction syndrome (disorder)", "system": "http://snomed.info/sct"})
@@ -288,14 +289,14 @@ class StrokeEtiologyOther(ConceptEnum):
     FABRY_DISEASE = ("9", {"code": "16652001", "display": "Fabry's disease (disorder)", "system": "http://snomed.info/sct"})
     CADASIL = ("10", {"code": "CADASIL", "display": "CADASIL", "system": "http://tecnomod-um.org/CodeSystem/stroke-etiology-other-cs"})
     GIANT_CELL_ARTERITIS = ("11", {"code": "414341000", "display": "Giant cell arteritis (disorder)", "system": "http://snomed.info/sct"})
-    ANTIPHOSPHOLIPID_SYNDROME = ("12", {"code": "26843008", "display": " Antiphospholipid syndrome (disorder)", "system": "http://snomed.info/sct"})    
+    ANTIPHOSPHOLIPID_SYNDROME = ("12", {"code": "26843008", "display": "Antiphospholipid syndrome (disorder)", "system": "http://snomed.info/sct"})    
     SICKLE_CELL_ANEMIA = ("13", {"code": "127040003", "display": "Sickle cell-hemoglobin SS disease (disorder)", "system": "http://snomed.info/sct"})
     MIGRAINOUS_STROKE = ("14", {"code": "1263550001", "display": "Infarction of brain due to migraine (disorder)", "system": "http://snomed.info/sct"})
     CVST = ("15", {"code": "192759008", "display": "Cerebral venous sinus thrombosis (disorder)", "system": "http://snomed.info/sct"})
 
 class MimicsDiagnosis(ConceptEnum):
     MIGRAINE = ("1", {"code": "37796009", "display": "Migraine (disorder)", "system": "http://snomed.info/sct"})
-    SEIZURE = ("2", {"code": "128613002", "display": " Seizure disorder (disorder)", "system": "http://snomed.info/sct"})
+    SEIZURE = ("2", {"code": "128613002", "display": "Seizure disorder (disorder)", "system": "http://snomed.info/sct"})
     DELIRIUM = ("3", {"code": "2776000", "display": "Delirium (disorder)", "system": "http://snomed.info/sct"})
     ELECTROLYTE_IMBALANCE = ("4", {"code": "105593004", "display": "Electrolyte imbalance (disorder)", "system": "http://snomed.info/sct"})
     FUNCTIONAL_DISORDER = ("5", {"code": "386585008", "display": "Functional disorder (disorder)", "system": "http://snomed.info/sct"})
@@ -364,7 +365,7 @@ class ProcedureNotDoneReason(ConceptEnum):
 
 class PostStrokeProcedures(ConceptEnum):
     PHYSIOTHERAPY = ("Physiotherapy", {"code": "722138006", "display": "Physiotherapy (qualifier value)", "system": "http://snomed.info/sct"})
-    OCCUPATIONAL_THERAPY = ("Occupational Therapy", {"code": "84478008", "display": " Occupational therapy (regime/therapy)", "system": "http://snomed.info/sct"})
+    OCCUPATIONAL_THERAPY = ("Occupational Therapy", {"code": "84478008", "display": "Occupational therapy (regime/therapy)", "system": "http://snomed.info/sct"})
     SPEECH_THERAPY = ("Speech Therapy", {"code": "5154007", "display": "Speech therapy (regime/therapy)", "system": "http://snomed.info/sct"})
     SMOKING_CESSATION = ("Smoking Cessation", {"code": "225323000", "display": "Smoking cessation education (procedure)", "system": "http://snomed.info/sct"})
     VENTRICULOPERITONEAL_SHUNT = ("Ventriculoperitoneal Shunt", {"code": "47020004", "display": "Ventriculoperitoneal shunt (procedure)", "system": "http://snomed.info/sct"})
@@ -397,14 +398,14 @@ class SwallowingScreeningDone(ConceptEnum):
     NOT_APPLICABLE = ("3", {"code": "385432009", "display": "Not applicable (qualifier value)", "system": "http://snomed.info/sct"})
 
 class ScreeningPerformer(ConceptEnum):
-    NURSE = ("1", {"code": "nurse", "display": "Nurse", "system": "http://terminology.hl7.org/CodeSystem/practitioner-role"})
-    PHYSICIAN = ("2", {"code": "physician", "display": "Physician", "system": "http://terminology.hl7.org/CodeSystem/practitioner-role"})
+    NURSE = ("1", {"code": "106292003", "display": "Professional nurse (occupation)", "system": "http://snomed.info/sct"})
+    PHYSICIAN = ("2", {"code": "309343006", "display": "Physician (occupation)", "system": "http://snomed.info/sct"})
     OTHER = ("3", {"code": "223366009", "display": "Healthcare professional (occupation)", "system": "http://snomed.info/sct"})
-    SPEECH_THERAPIST = ("4", {"code": "159026005", "display": "	Speech and language therapist", "system": "http://snomed.info/sct"})
+    SPEECH_THERAPIST = ("4", {"code": "159026005", "display": "Speech and language therapist", "system": "http://snomed.info/sct"})
 
 class SwallowingScreeningTiming(ConceptEnum):
-    WITHIN_4_HOURS = ("1", {"code": "T4H", "display": "Within 4 Hours", "system": "http://tecnomod-um.org/CodeSystem/swallow-screen-time-cs"})
-    WITHIN_24_HOURS = ("2", {"code": "post-acute", "display": "Acute Phase (<24h)", "system": "http://tecnomod-um.org/CodeSystem/procedure-timing-context-cs"})
+    WITHIN_4_HOURS = ("1", {"code": "T4H", "display": "Within 4 Hours", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
+    WITHIN_24_HOURS = ("2", {"code": "acute", "display": "Acute Phase (<24h)", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
     AFTER_24_HOURS = ("3", {"code": "281381003", "display": "More than 24 hours after admission (qualifier value)", "system": "http://snomed.info/sct"})
 
 class SwallowingScreeningType(ConceptEnum):
@@ -421,7 +422,7 @@ class DischargeDestination(ConceptEnum):
     SAME_HOSPITAL = ("2", {"code": "37729005", "display": "Patient transfer, in-hospital (procedure)", "system": "http://snomed.info/sct"})
     SOCIAL_CARE = ("4", {"code": "306694006", "display": "Discharge to nursing home (procedure)", "system": "http://snomed.info/sct"})
     DEAD = ("5", {"code": "dead", "display": "Patient Deceased", "system": "http://tecnomod-um.org/CodeSystem/stroke-discharge-destination-cs"})
-    AGAINST_MEDICAL_ADVICE = ("6", {"code": "225928004", "display": " Patient self-discharge against medical advice (procedure)", "system": "http://snomed.info/sct"})
+    AGAINST_MEDICAL_ADVICE = ("6", {"code": "225928004", "display": "Patient self-discharge against medical advice (procedure)", "system": "http://snomed.info/sct"})
 
 class DischargeFacilityDepartment(ConceptEnum):
     ACUTE_REHABILITATION = ("1", {"code": "acute", "display": "Acute Rehabilitation", "system": "http://tecnomod-um.org/CodeSystem/discharge-dept-cs"})
@@ -437,10 +438,10 @@ class DischargeFacilityType(ConceptEnum):
 
 
 class FirstContactPlace(ConceptEnum):
-    RADIOLOGY = ("1", {"code": "HRAD", "display": "radiology unit", "system": "http://tecnomod-um.org/CodeSystem/first-contact-place-cs"})
-    EMERGENCY= ("2", {"code": "ER", "display": "Emergency room", "system": "http://tecnomod-um.org/CodeSystem/first-contact-place-cs"})
-    OUTPATIENT = ("3", {"code": "OF", "display": "Outpatient facility", "system": "http://tecnomod-um.org/CodeSystem/first-contact-place-cs"})
-    OTHER = ("4", {"code": "other", "display": "Other Department", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})    
+    RADIOLOGY = ("1", {"code": "HRAD", "display": "radiology unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
+    EMERGENCY= ("2", {"code": "ER", "display": "Emergency room", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
+    OUTPATIENT = ("3", {"code": "OF", "display": "Outpatient facility", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
+    OTHER = ("4", {"code": "other", "display": "Other Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})    
 
 
 class MTiciScore(ConceptEnum):
@@ -458,7 +459,7 @@ class Nimodipinetiming(ConceptEnum):
 
 
 class NoAnticoagulantReversalReason(ConceptEnum):
-    CONSENT = ("1", {"code": "Not-Consent", "display": "Patient or family did not consent ", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
+    CONSENT = ("1", {"code": "Not-Consent", "display": "Patient or family did not consent", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
     COST = ("2", {"code": "Cost of drug", "display": "Cost of drug", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
     NOT_AVAILABLE = ("3", {"code": "Not-Available", "display": "Drug not available", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
     NOT_LICENSED = ("4", {"code": "Not-Licensed", "display": "Antidote not licenced for specific indication", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
@@ -469,7 +470,7 @@ class NoAnticoagulantReversalReason(ConceptEnum):
 class NoAnticoagulantReason(ConceptEnum):
     ALLERGY = ("1", {"code": "609328004", "display": "Allergy disposition (finding)", "system": "http://snomed.info/sct"})
     MENTAL_STATUS = ("2", {"code": "36456004", "display": "Mental state finding (finding)", "system": "http://snomed.info/sct"})
-    CONSENT = ("3", {"code": "Not-Consent", "display": "Patient or family did not consent ", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
+    CONSENT = ("3", {"code": "Not-Consent", "display": "Patient or family did not consent", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
     BLEEDING = ("4", {"code": "131148009", "display": "Bleeding (finding)", "system": "http://snomed.info/sct"})
     FALL_RISK = ("5", {"code": "129839007", "display": "At increased risk for falls (finding)", "system": "http://snomed.info/sct"})
     SIDE_EFFECT = ("6", {"code": "401207004", "display": "Medication side effects present (finding)", "system": "http://snomed.info/sct"})
@@ -577,9 +578,9 @@ class BodySites(ConceptEnum):
     BRAIN_STEM = ("Brain Stem", {"code": "119238007", "display": "Brain stem part (body structure)", "system": "http://snomed.info/sct"})
     CORTICAL = ("Cortical", {"code": "87791003", "display": "Cortex of bone structure (body structure)", "system": "http://snomed.info/sct"})
     SUBCORTICAL = ("Subcortical", {"code": "81737006", "display": "Structure of lacunar ligament (body structure)", "system": "http://snomed.info/sct"})
-    INFRATENTORIAL = ("Infratentorial", {"code": "21031007", "display": " Infratentorial brain structure (body structure)", "system": "http://snomed.info/sct"})
-    SUPRATENTORIAL = ("Supratentorial", {"code": "222036002", "display": " Supratentorial brain structure (body structure)", "system": "http://snomed.info/sct"})
-    SUBARACHNOID = ("Subarachnoid", {"code": "35951006", "display": " Subarachnoid space structure (body structure)", "system": "http://snomed.info/sct"})
+    INFRATENTORIAL = ("Infratentorial", {"code": "21031007", "display": "Infratentorial brain structure (body structure)", "system": "http://snomed.info/sct"})
+    SUPRATENTORIAL = ("Supratentorial", {"code": "222036002", "display": "Supratentorial brain structure (body structure)", "system": "http://snomed.info/sct"})
+    SUBARACHNOID = ("Subarachnoid", {"code": "35951006", "display": "Subarachnoid space structure (body structure)", "system": "http://snomed.info/sct"})
     INTRAVENTRICULAR = ("Intraventricular", {"code": "180955002", "display": "Structure of intraventricular meninges of brain (body structure)", "system": "http://snomed.info/sct"})
 
 
@@ -599,7 +600,7 @@ class RiskFactor(ConceptEnum):
     PreviousIschemicStroke = ("PreviousIschemicStroke", {"code": "266257000", "display": "Transient ischemic attack (disorder)", "system": "http://snomed.info/sct"})
     PreviousStroke = ("PreviousStroke", {"code": "230690007", "display": "Cerebrovascular accident (disorder)", "system": "http://snomed.info/sct"})
     Smoker = ("Smoker", {"code": "77176002", "display": "Smoker (finding)", "system": "http://snomed.info/sct"})
-    Non_Smoker = ("Non-Smoker", {"code": "8392000 ", "display": "Non-smoker (finding)", "system": "http://snomed.info/sct"})
+    Non_Smoker = ("Non-Smoker", {"code": "8392000", "display": "Non-smoker (finding)", "system": "http://snomed.info/sct"})
     Ex_Smoker = ("Ex-Smoker", {"code": "8517006", "display": "Ex-smoker (finding)", "system": "http://snomed.info/sct"})
     VTE = ("VTE", {"code": "429098002", "display": "Thromboembolism of vein (disorder)", "system": "http://snomed.info/sct"})
 
@@ -657,9 +658,10 @@ class FunctionalScore(ConceptEnum):
     AGE = ("Age", {"code": "445518008", "display": "Age at onset of clinical finding (observable entity)", "system": "http://snomed.info/sct"})
     
 class ManagementAppointment(ConceptEnum):
-    SCHEDULED = ("1", {"code": "Scheduled", "display": "Scheduled", "system": ""})
-    NOT_SCHEDULED = ("2", {"code": "not-scheduled", "display": "Not Scheduled", "system": ""})
-    NOT_RECOMMENDED = ("3", {"code": "not-recommended", "display": "Not Recommended", "system": ""})
+    APPOINTMENT = ("0", {"code": "follow-up-appointment", "display": "Follow-up Appointment Status", "system": "http://tecnomod-um.org/CodeSystem/management-appointment-cs"})
+    SCHEDULED = ("1", {"code": "Scheduled", "display": "Scheduled", "system": "http://tecnomod-um.org/CodeSystem/management-appointment-cs"})
+    NOT_SCHEDULED = ("2", {"code": "not-scheduled", "display": "Not Scheduled", "system": "http://tecnomod-um.org/CodeSystem/management-appointment-cs"})
+    NOT_RECOMMENDED = ("3", {"code": "not-recommended", "display": "Not Recommended", "system": "http://tecnomod-um.org/CodeSystem/management-appointment-cs"})
 
 class AssessmentContext(ConceptEnum):
     PRESTROKE = ("Prestroke", {"code": "pre-stroke", "display": "Pre-stroke", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
@@ -683,9 +685,9 @@ class SpecificFinding(ConceptEnum):
     HYDROCEPHALUS = ("Hydrocephalus", {"code": "230745008", "display": "Hydrocephalus (disorder)", "system": "http://snomed.info/sct"})
     OLD_INFARCT = ("Old Infarct", {"code": "old-infarct", "display": "Old Infarct", "system": "http://tecnomod-um.org/CodeSystem/old-infarct-cs"})
     ARTERY_OCCLUSION = ("Artery Occlusion", {"code": "2929001", "display": "Occlusion of artery (disorder)", "system": "http://snomed.info/sct"})
-    INTRACRANIAL_HEMORRHAGE = ("Intracranial Hemorrhage", {"code": "1386000", "display": " Intracranial hemorrhage (disorder)", "system": "http://snomed.info/sct"})
+    INTRACRANIAL_HEMORRHAGE = ("Intracranial Hemorrhage", {"code": "1386000", "display": "Intracranial hemorrhage (disorder)", "system": "http://snomed.info/sct"})
     BRAIN_INFARCT = ("Brain Infarct", {"code": "230690007", "display": "Cerebrovascular accident (disorder)", "system": "http://snomed.info/sct"})
-    HEMORRHAGIC_TRANSFORMATION = ("Hemorrhagic Transformation", {"code": "230706003", "display": " Hemorrhagic cerebral infarction (disorder)", "system": "http://snomed.info/sct"}) 
+    HEMORRHAGIC_TRANSFORMATION = ("Hemorrhagic Transformation", {"code": "230706003", "display": "Hemorrhagic cerebral infarction (disorder)", "system": "http://snomed.info/sct"}) 
     NO_FINDING = ("No Finding", {"code": "no-finding", "display": "No Finding", "system": "http://tecnomod-um.org/CodeSystem/specific-finding-cs"})
 
 class IchTreatment(ConceptEnum):
@@ -706,9 +708,9 @@ class StrokeCircumstance(ConceptEnum):
     IN_HOSPITAL = ("In Hospital", {"code": "in-hospital", "display": "In Hospital Stroke", "system": "http://tecnomod-um.org/CodeSystem/stroke-circumstance-codes-cs"})
 
 class PostAcuteCare(ConceptEnum):
-    TRUE = ("True", {"code": "post-acute", "display": "Acute Phase (<24h)", "system": "http://tecnomod-um.org/CodeSystem/procedure-timing-context-cs"})
+    TRUE = ("True", {"code": "acute", "display": "Acute Phase (<24h)", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
     FALSE = ("False", {"code": "281381003", "display": "More than 24 hours after admission (qualifier value)", "system": "http://snomed.info/sct"})
-    NONE = ("None", {"code": "unknown", "display": "Unknown/Not Applicable", "system": "http://tecnomod-um.org/CodeSystem/procedure-timing-context-cs"})
+    NONE = ("None", {"code": "unknown", "display": "Unknown/Not Applicable", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
 
 class PerforationProcedures(ConceptEnum):
     THROMBOLYSIS = ("Thrombolysis", {"code": "472191000119101", "display": "Thrombolysis of cerebral artery by intravenous infusion (procedure)", "system": "http://snomed.info/sct"})
@@ -746,7 +748,7 @@ class TimingMetricCodes(ConceptEnum):
 
 class TiaClinicalSymptoms(ConceptEnum):
     UNILATERAL_WEAKNESS = ("1", {"code": "26544005", "display": "Muscle weakness (finding)", "system": "http://snomed.info/sct"})
-    SPEECH_DISTURBANCE = ("2", {"code": "29164008", "display": " Disturbance in speech (finding)", "system": "http://snomed.info/sct"})
+    SPEECH_DISTURBANCE = ("2", {"code": "29164008", "display": "Disturbance in speech (finding)", "system": "http://snomed.info/sct"})
     OTHER_SYMPTOM = ("3", {"code": "other-symptom", "display": "Other Symptom", "system": "http://tecnomod-um.org/CodeSystem/symptoms-cs"})
 
 class TiaSymptomDuration(ConceptEnum):
@@ -803,7 +805,8 @@ class GlasgowComaScale(ConceptEnum):
     GCS_13 = ("13", {"code": "54185009", "display": "Glasgow coma scale, 13 (finding)", "system": "http://snomed.info/sct"})
     GCS_14 = ("14", {"code": "26734006", "display": "Glasgow coma scale, 14 (finding)", "system": "http://snomed.info/sct"})
     GCS_15 = ("15", {"code": "70040003", "display": "Glasgow coma scale, 15 (finding)", "system": "http://snomed.info/sct"})
-    GCS = ("GCS", {"code": "248241002", "display": "Glasgow coma scale (observable entity)", "system": "http://snomed.info/sct"})
+    GCS = ("GCS", {"code": "386557006", "display": "Glasgow coma scale finding (finding)", "system": "http://snomed.info/sct"})
+    GCScore = ("GCScore", {"code": "248241002", "display": "Glasgow coma score (observable entity)", "system": "http://snomed.info/sct"})
 
 class NotMedicationReason(ConceptEnum):
     ALLERGY = ("Allergy", {"code": "609328004", "display": "Allergy disposition (finding)", "system": "http://snomed.info/sct"})
@@ -814,7 +817,7 @@ class NotMedicationReason(ConceptEnum):
     SIDE_EFFECT = ("Side Effect", {"code": "401207004", "display": "Medication side effects present (finding)", "system": "http://snomed.info/sct"})
     PLANNED = ("Planned", {"code": "397943006", "display": "Planned (qualifier value)", "system": "http://snomed.info/sct"})
     TERMINAL_ILLNESS = ("Terminal Illness", {"code": "300936002", "display": "Terminal illness (finding)", "system": "http://snomed.info/sct"})
-    CONSENT = ("Consent", {"code": "Not-Consent", "display": "Patient or family did not consent ", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
+    CONSENT = ("Consent", {"code": "Not-Consent", "display": "Patient or family did not consent", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
     COST = ("Cost", {"code": "Cost of drug", "display": "Cost of drug", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
     NOT_AVAILABLE = ("Not Available", {"code": "Not-Available", "display": "Medication not available", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
     NOT_LICENSED = ("Not Licensed", {"code": "Not-Licensed", "display": "Medication not licensed", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})

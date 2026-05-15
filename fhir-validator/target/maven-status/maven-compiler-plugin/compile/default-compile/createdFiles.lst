@@ -1,0 +1,6 @@
+com\example\validator\validation\RequiredResourcesValidator.class
+com\example\validator\validation\SnomedSnowstormValidator.class
+com\example\validator\config\api\ValidationController.class
+com\example\validator\config\FhirValidatorConfig.class
+com\example\validator\terminology\SnowstormClient.class
+com\example\validator\FhirValidatorApplication.class
