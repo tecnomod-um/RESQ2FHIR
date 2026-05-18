@@ -9,8 +9,8 @@ from fhir.resources.reference import Reference
 from fhir.resources.coding import Coding
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.extension import Extension
-from enum_models import BleedingReason, BodySites, MimicsDiagnosis, PostStrokeComplications, RiskFactor, SpecificFinding, StrokeEtiology, StrokeEtiology, StrokeType, ClinicalStatusCodes
-from utils import parse_datetime
+from scripts.enum_models import BleedingReason, BodySites, MimicsDiagnosis, PostStrokeComplications, RiskFactor, SpecificFinding, StrokeEtiology, StrokeEtiology, StrokeType, ClinicalStatusCodes
+from scripts.utils import parse_datetime
 
 
 def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: str, stroke_type: StrokeType | None, stroke_type_mimics: MimicsDiagnosis | None, stroke_etiology_known: bool, stroke_etiology: StrokeEtiology | None , bleeding_reason_found: bool, bleeding_reason: BleedingReason | None, wakeup_stroke: bool, sleep_timestamp: str | None, onset_timestamp: str | None, obs_symptoms_tia_ref: str | None, ich_infratentorial: bool, ich_supratentorial: bool, intraventricular_hemorrhage: bool, subarachnoid_hemorrhage: bool) -> Condition:

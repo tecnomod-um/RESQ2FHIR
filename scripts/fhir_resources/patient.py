@@ -6,8 +6,8 @@ from fhir.resources.patient import Patient
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.identifier import Identifier
 from fhir.resources.extension import Extension
-from enum_models import Sex
-from utils import  TransformError
+from scripts.enum_models import Sex
+from scripts.utils import TransformError
 
 
 def build_Patient(patient_id: str, patient_sex: Sex | None) -> Patient:

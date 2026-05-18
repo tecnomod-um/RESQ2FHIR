@@ -16,11 +16,11 @@ from fhir.resources.codeablereference import CodeableReference
 from fhir.resources.extension import Extension
 from fhir.resources.period import Period
 from fhir.resources.meta import Meta
-from enum_models import (
+from scripts.enum_models import (
     AssessmentContext, CarotidEndarterectomyTiming, IchTreatment, ImagingDone, ImagingType, NoThrombectomyReason, NoThrombolysisReason, PostAcuteCare, PostNeurosurgeryImaging, PostRecanalizationImaging, PostStrokeProcedures, ProcedureNotDoneReason,SwallowingScreeningType,
     SwallowingScreeningTiming, PerforationProcedures, ThrombectomyComplications, VteProcedures
 )
-from utils import parse_datetime
+from scripts.utils import parse_datetime
 
 
 def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_report_ref: str, imaging_done: ImagingDone | None, imaging_type: ImagingType | None, post_acute_care: bool, imaging_timestamp: str | None) -> Procedure:
