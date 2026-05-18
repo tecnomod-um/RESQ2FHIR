@@ -11,12 +11,12 @@ from fhir.resources.quantity import Quantity
 from fhir.resources.range import Range
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.extension import Extension
-from enum_models import (
+from scripts.enum_models import (
     AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ManagementAppointment, ObservationMethods, ProcedureNotDoneReason, RiskFactor, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
     AssessmentContext, FunctionalScore, MTiciScore, SpecificFinding, UnitofMeasurement, TimingMetricCodes
 )
 from fhir.resources.meta import Meta 
-from utils import safe_isna, parse_datetime
+from scripts.utils import safe_isna, parse_datetime
 
 
 def build_observation_vital_signs(systolic_pressure: int | None, diastolic_pressure: int | None, patient_ref: str, encounter_ref: str, timing: AssessmentContext | None) -> Observation:

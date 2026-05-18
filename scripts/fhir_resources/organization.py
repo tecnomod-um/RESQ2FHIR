@@ -4,7 +4,7 @@ Organization resource builder for FHIR transformation.
 
 from fhir.resources.organization import Organization
 from fhir.resources.identifier import Identifier
-from provider_map import mapping as provider_mapping
+from scripts.provider_map import mapping as provider_mapping
 
 
 def get_org_id(hospital_name: str):
@@ -32,12 +32,13 @@ def get_org_id(hospital_name: str):
             return provider_mapping[key]
 
 
-def build_organization(hospital_name: str) -> Organization:
+def build_organization(hospital_name: str, provider_id: str | int | None = None) -> Organization:
     """
     Build a FHIR Organization resource from raw data.
     
     Args:
         hospital_name: Name of the hospital
+        provider_id: Source registry organization identifier, when available
         
     Returns:
         Organization resource
@@ -45,7 +46,7 @@ def build_organization(hospital_name: str) -> Organization:
     org = Organization()
     org.active = True
 
-    mapped_org_id = get_org_id(hospital_name.strip().replace(" ", "-"))
+    mapped_org_id = provider_id if provider_id not in (None, "") else get_org_id(hospital_name.strip().replace(" ", "-"))
 
     valueConceptOrg = Identifier(
         system="https://stroke.qualityregistry.org",

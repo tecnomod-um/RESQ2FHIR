@@ -208,6 +208,26 @@ Parameters:
   - persistOnlyIfNoErrors (optional, default=true): Only persist error-free bundles
 ```
 
+### Create Job from Slovak/RES-Q CSV
+```bash
+POST /jobs/csv/slovak
+Content-Type: multipart/form-data
+
+Parameters:
+  - file (required): Slovak/RES-Q CSV export
+  - profile (optional): Canonical profile to validate against
+  - parallelism (optional, 1-16, default=6): Validation concurrency
+  - persistToHapi (optional, default=false): Upload to HAPI if no errors
+  - persistOnlyIfNoErrors (optional, default=true): Only persist error-free bundles
+```
+
+This endpoint first normalizes source-specific field names and values into the
+internal registry contract, then runs the existing CSV-to-FHIR converter and
+validator flow. It accepts both semicolon-separated original Slovak registry
+exports (for example columns such as `PACPOHLAVIE`, `DATUM_CT`,
+`CT_MR_VYSETRENIE`) and already translated RES-Q-style CSV files. The normalized CSV is stored under
+`workdir/jobs/{job_id}/normalized/normalized.csv`.
+
 ## Output Format
 
 Each generated bundle is a FHIR `Bundle` with `type=transaction`:

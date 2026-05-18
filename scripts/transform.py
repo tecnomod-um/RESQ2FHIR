@@ -25,9 +25,17 @@ from decimal import Decimal
 import numpy as np
 import datetime as dt
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 # Import FHIR builders
-from data_modeling import transform_to_fhir
-from utils import TransformError 
+try:
+    from scripts.data_modeling import transform_to_fhir
+    from scripts.utils import TransformError
+except ModuleNotFoundError:
+    from data_modeling import transform_to_fhir
+    from utils import TransformError
 
 
 logger = logging.getLogger(__name__)
@@ -55,17 +63,28 @@ def load_csv(csv_path: Path) -> pd.DataFrame:
 
 def row_to_dict(row: pd.Series) -> Dict[str, Any]:
     """Convert pandas Series row to dict, handling NaN values."""
+    def coerce_value(value):
+        if isinstance(value, (bool, np.bool_)):
+            return bool(value)
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return None
+            normalized = stripped.lower()
+            if normalized in ("true", "1", "yes", "y", "t", "verdadero"):
+                return True
+            if normalized in ("false", "0", "no", "n", "f", "falso"):
+                return False
+            return stripped
+        return value
+
     result = {}
     for key, value in row.items():
         # Skip NaN/None values
         if pd.isna(value):
             result[key] = None
         else:
-            # Keep string representation if it's a string
-            if isinstance(value, str):
-                result[key] = value.strip() if value.strip() else None
-            else:
-                result[key] = value
+            result[key] = coerce_value(value)
     return result
 
 

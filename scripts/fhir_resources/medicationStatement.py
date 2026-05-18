@@ -8,7 +8,7 @@ from fhir.resources.reference import Reference
 from fhir.resources.codeablereference import CodeableReference
 from fhir.resources.coding import Coding
 from fhir.resources.codeableconcept import CodeableConcept
-from enum_models import AdherenceCodes
+from scripts.enum_models import AdherenceCodes
 from fhir.resources.meta import Meta
 
 

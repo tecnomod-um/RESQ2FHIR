@@ -11,6 +11,8 @@ import httpx
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from scripts.normalization.slovak import normalize_slovak_csv
+from scripts.normalization.sk_registry import normalize_sk_registry_csv
 
 # ============ Config por variables de entorno ============
 WORKDIR = Path(os.getenv("WORKDIR", "/app/workdir")).resolve()
@@ -101,6 +103,13 @@ def _without_information_issues(outcome: dict) -> dict:
     ]
     filtered.pop("text", None)
     return filtered
+
+def _looks_like_original_sk_csv(path: Path) -> bool:
+    try:
+        header = path.read_text(encoding="utf-8", errors="replace").splitlines()[0]
+    except Exception:
+        return False
+    return ";" in header and "PACPOHLAVIE" in header and "CT_MR_VYSETRENIE" in header
 
 async def _run_converter(input_path: Path, out_dir: Path) -> int:
     """
@@ -266,6 +275,111 @@ async def create_job_from_csv(
                 ok = 0
                 fails = []
                 for p in paths:  # 'paths' ya tiene tus *.json generados por el conversor
+                    try:
+                        bundle = json.loads(p.read_text(encoding="utf-8"))
+                        _tag_bundle(bundle, job_id)
+                        await _post_transaction(bundle)
+                        ok += 1
+                    except Exception as e:
+                        fails.append({"bundle": p.name, "error": str(e)[:500]})
+                hapi_upload = {"attempted": len(paths), "uploaded": ok, "failures": fails}
+
+    summary["hapiUpload"] = hapi_upload
+    (job_dir / "job.json").write_text(json.dumps(summary, ensure_ascii=False), encoding="utf-8")
+    return JSONResponse(summary)
+
+
+@app.post("/jobs/csv/slovak", status_code=201)
+async def create_job_from_slovak_csv(
+    file: UploadFile = File(..., description="Slovak/RES-Q CSV file"),
+    profile: Optional[str] = Form(None, description="Canonical profile to enforce (optional)"),
+    parallelism: int = Form(6, ge=1, le=16, description="Validation parallelism"),
+    persistToHapi: bool = Form(False, description="Persist validated resources into HAPI"),
+    persistOnlyIfNoErrors: bool = Form(True, description="Only persist when there are no fatal/error issues"),
+):
+    """
+    1) Store the Slovak CSV file
+    2) Normalize it to the internal registry CSV contract
+    3) Run the existing converter, validate Bundles, and optionally persist to HAPI
+    """
+    start = time.time()
+    job_id = _new_job_id()
+    job_dir = WORKDIR / "jobs" / job_id
+    in_dir = job_dir / "input"
+    normalized_dir = job_dir / "normalized"
+    out_dir = job_dir / "bundles"
+    oo_dir = job_dir / "outcomes"
+    for d in (in_dir, normalized_dir, out_dir, oo_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    original_name = file.filename or "slovak-input.csv"
+    input_path = _save_upload(file, in_dir / original_name)
+    normalized_path = normalized_dir / "normalized.csv"
+
+    try:
+        if _looks_like_original_sk_csv(input_path):
+            normalization = normalize_sk_registry_csv(input_path, normalized_path)
+        else:
+            normalization = normalize_slovak_csv(input_path, normalized_path)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Normalization failed: {str(e)}"
+        )
+
+    try:
+        await _run_converter(normalized_path, out_dir)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Conversion failed: {str(e)}"
+        )
+
+    paths = sorted(out_dir.glob("*.json"))
+    if not paths:
+        raise HTTPException(400, "The converter did not produce any Bundle (*.json)")
+
+    results = await _validate_many(paths, profile=profile, concurrency=parallelism)
+
+    totals = {"fatal": 0, "error": 0, "warning": 0, "information": 0}
+    rows = []
+    for p, outcome in results:
+        outcome = _without_information_issues(outcome)
+        (oo_dir / f"{p.stem}.oo.json").write_text(json.dumps(outcome, ensure_ascii=False), encoding="utf-8")
+        sev = _count_issues(outcome)
+        for k in totals:
+            totals[k] += sev[k]
+        rows.append({"bundle": p.name, "issues": sev})
+
+    end = time.time()
+    summary = {
+        "jobId": job_id,
+        "input": {"filename": original_name, "rows": normalization.get("rows")},
+        "normalization": normalization,
+        "totals": {
+            "bundles": len(paths),
+            "errors": totals["fatal"] + totals["error"],
+            "warnings": totals["warning"]
+        },
+        "bySeverity": totals,
+        "startedAt": datetime.utcfromtimestamp(start).isoformat() + "Z",
+        "finishedAt": datetime.utcfromtimestamp(end).isoformat() + "Z",
+        "durationMs": int((end - start) * 1000),
+        "bundles": rows
+    }
+
+    hapi_upload = None
+    if persistToHapi:
+        if not HAPI_BASE_URL:
+            hapi_upload = {"skipped": True, "reason": "HAPI_BASE_URL not configured"}
+        else:
+            errors_total = summary["totals"]["errors"]
+            if persistOnlyIfNoErrors and errors_total > 0:
+                hapi_upload = {"skipped": True, "reason": "errors_present", "errors": errors_total}
+            else:
+                ok = 0
+                fails = []
+                for p in paths:
                     try:
                         bundle = json.loads(p.read_text(encoding="utf-8"))
                         _tag_bundle(bundle, job_id)
