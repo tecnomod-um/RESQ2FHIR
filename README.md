@@ -208,22 +208,6 @@ Parameters:
   - persistOnlyIfNoErrors (optional, default=true): Only persist error-free bundles
 ```
 
-## Data Mapping
-
-The converter uses `data/mappings.csv` to map CSV fields to FHIR concepts:
-
-- **Observable fields** → FHIR Observations
-- **Condition fields** → FHIR Conditions
-- **Procedure fields** → FHIR Procedures
-- **Medication fields** → FHIR MedicationStatements/Requests
-
-Example mapping:
-```
-field_id,pattern_type,source_procedure,observable,finding,ontology_mapping
-age,ObservationResultStatement,http://snomed.info/id/32485007,http://snomed.info/id/424144002,,AdmissionAge,Integer
-sex,ClinicalSituationStatement,http://snomed.info/id/32485007,,http://snomed.info/id/184100006,AdmissionGender,Categorical
-```
-
 ## Output Format
 
 Each generated bundle is a FHIR `Bundle` with `type=transaction`:
@@ -331,16 +315,16 @@ cat workdir/jobs/{job_id}/job.json
 ## FHIR Standards Compliance
 
 This implementation targets:
-- **FHIR R4** (4.0.1)
+- **FHIR R5** (5.0.1)
 - **SNOMED CT** for clinical coding
 - **HL7v3** coded value systems (where applicable)
 - Custom ValueSets for stroke-specific concepts
 
 ## References
 
-- [FHIR R4 Specification](https://www.hl7.org/fhir/R4/)
+- [FHIR R5 Specification](https://www.hl7.org/fhir/R5/)
 - [SNOMED CT Browser](https://browser.ihtsdotools.org/)
-- [SK2FHIR Reference Implementation](https://github.com/tecnomod-um/SK2FHIR)
+- [RESQ2FHIR Reference Implementation](https://github.com/tecnomod-um/SK2FHIR)
 - RESQ Stroke Registry Schema
 
 ## License
@@ -356,5 +340,5 @@ For issues or questions:
 
 ---
 
-**Last Updated**: 2024  
+**Last Updated**: 2026  
 **Version**: 1.0.0
