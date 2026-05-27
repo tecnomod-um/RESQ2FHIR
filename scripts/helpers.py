@@ -99,7 +99,7 @@ def get_on_discharge_medications(raw: dict):
         "discharge_asa": Medications.ASA,
         "discharge_clopidogrel": Medications.CLOPIDOGREL,
         "discharge_contraception": Medications.CONTRACEPTION,
-        "discharge_other": DischargeMedication.OTHER,
+        "discharge_other": Medications.OTHER_MEDICATION,
         "discharge_statin": Medications.STATIN,
         "discharge_warfarin": Medications.WARFARIN,
         #"discharge_any_antithrombotics": Medications.ANTITHROMBOTIC,

@@ -14,7 +14,7 @@ from fhir.resources.coding import Coding
 from fhir.resources.timing import Timing
 from fhir.resources.period import Period
 
-from scripts.enum_models import DischargeMedication, InsulinOnHyperglycemiaTiming, Medications, Nimodipinetiming, NoAnticoagulantReason, NotMedicationReason, ParacetamolOnFeverTiming, PostAcuteCare, UnitofMeasurement
+from scripts.enum_models import InsulinOnHyperglycemiaTiming, Medications, Nimodipinetiming, NoAnticoagulantReason, NotMedicationReason, ParacetamolOnFeverTiming, PostAcuteCare, UnitofMeasurement
 from scripts.utils import parse_datetime
 
 
