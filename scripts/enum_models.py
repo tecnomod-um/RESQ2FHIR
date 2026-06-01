@@ -120,16 +120,17 @@ class AdmissionDepartment(ConceptEnum):
     CRITICAL_CARE_ICU = ("3", {"code": "ICU", "display": "Intensive Care Unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     INTERNAL_MEDICINE = ("4", {"code": "GIM", "display": "General internal medicine clinic", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     OTHER = ("5", {"code": "other", "display": "Other Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})
+    UNKNOWN = ("", {"code": "unknown", "display": "Unknown Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})
 
 
 class AdmissionPathway(ConceptEnum): # Also ArrivalMode
-    EMS = ("1", {"code": "ems-gp", "display": "EMS from GP", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
-    PRIVATE_TRANSPORTATION = ("2", {"code": "priv-transport", "display": "Private Transportation", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
-    STROKE_CENTER = ("3", {"code": "stroke-center", "display": "Stroke Center", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
-    ANOTHER_HOSPITAL = ("4", {"code": "another-hosp", "display": "Another Hospital", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
-    EMS_FROM_GP = ("5", {"code": "ems-gp", "display": "EMS from GP", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
-    PRIVATE_TRANSPORTATION_GP = ("6", {"code": "priv-transport-gp", "display": "Private Transportation from GP", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
-    INHOSPITAL_STROKE = ("7", {"code": "in-hospital-stroke", "display": "In-Hospital Stroke", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
+    EMS = ("1", {"code": "ems-home", "display": "patient arrived by EMS/ambulance from home/scene", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
+    PRIVATE_TRANSPORTATION = ("2", {"code": "priv-transport", "display": "patient arrived by private transportation from home/scene", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
+    STROKE_CENTER = ("3", {"code": "stroke-center", "display": "patient arrived from stroke treating center", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
+    ANOTHER_HOSPITAL = ("4", {"code": "another-hosp", "display": "patient arrived from hospital that is not stroke treating center", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
+    EMS_FROM_GP = ("5", {"code": "ems-gp", "display": "patient arrived by EMS/ambulance from general practitioner/outpatient office/community service", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
+    PRIVATE_TRANSPORTATION_GP = ("6", {"code": "priv-transport-gp", "display": "patient arrived by private transportation from general practitioner/outpatient office/community service", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
+    INHOSPITAL_STROKE = ("7", {"code": "in-hospital-stroke", "display": "stroke while hospitalized in another department of the same hospital", "system": "http://tecnomod-um.org/CodeSystem/stroke-arrival-mode-cs"})
 
 class CarotidEndarterectomyTiming(ConceptEnum):
     IN_24_HOURS = ("2", {"code": "in-24-hours", "display": "Carotid endarterectomy in 24 hours", "system": "http://tecnomod-um.org/CodeSystem/carotid-endarterectomy-timing-cs"})
@@ -167,37 +168,6 @@ class HemorrhagicTransformationType(ConceptEnum):
     PH_TYPE_1 = ("3", {"code": "ph-type-1", "display": "PH type 1", "system": "http://tecnomod-um.org/CodeSystem/hemorrhagic-transformation-type-cs"})
     PH_TYPE_2 = ("4", {"code": "ph-type-2", "display": "PH type 2", "system": "http://tecnomod-um.org/CodeSystem/hemorrhagic-transformation-type-cs"})
 
-class Medications(ConceptEnum):
-    ANTIDIABETIC = ("Antidiabetic", {"code": "antidiabetic", "display": "Any Antidiabetic", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})    
-    ANTIHYPERTENSIVE = ("Antihypertensive", {"code": "372586001", "display": "Hypotensive agent (substance)", "system": "http://snomed.info/sct"})
-    ANTICOAGULANT = ("Anticoagulant", {"code": "372862008", "display": "Anticoagulant (substance)", "system": "http://snomed.info/sct"})
-    ANTIPLATELET = ("Antiplatelet", {"code": "antiplatelet", "display": "Any Antiplatelet", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
-    APIXABAN = ("Apixaban", {"code": "698090000", "display": "Apixaban (substance)", "system": "http://snomed.info/sct"})
-    ASA = ("ASA", {"code": "387458008", "display": "Aspirin (substance)", "system": "http://snomed.info/sct"})
-    CILOSTOLAZOL = ("Cilostazol", {"code": "116087001", "display": "Cilostazol (substance)", "system": "http://snomed.info/sct"})
-    CLOPIDOGREL = ("Clopidogrel", {"code": "386952008", "display": "Clopidogrel (substance)", "system": "http://snomed.info/sct"})    
-    CONTRACEPTION = ("Contraception", {"code": "312263009", "display": "Sex hormone (substance)", "system": "http://snomed.info/sct"})
-    DABIGATRAN = ("Dabigatran", {"code": "698871007", "display": "Dabigatran (substance)", "system": "http://snomed.info/sct"})
-    DIPYRIDAMOLE = ("Dipyridamole", {"code": "387371005", "display": "Dipyridamole (substance)", "system": "http://snomed.info/sct"})
-    EDOXABAN = ("Edoxaban", {"code": "712778008", "display": "Edoxaban (substance)", "system": "http://snomed.info/sct"})
-    HEPARIN = ("Heparin", {"code": "372877000", "display": "Heparin (substance)", "system": "http://snomed.info/sct"})
-    OTHER_ANTICOAGULANT = ("Other Anticoagulant", {"code": "other-anticoagulant", "display": "Other Anticoagulant", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
-    OTHER_ANTIPLATELET = ("Other Antiplatelet", {"code": "other-antiplatelet", "display": "Other Antiplatelet", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
-    PLASUGREL = ("Plasugrel", {"code": "443129001", "display": "Prasugrel (substance)", "system": "http://snomed.info/sct"})
-    RIVAROXABAN = ("Rivaroxaban", {"code": "442031002", "display": "Rivaroxaban (substance)", "system": "http://snomed.info/sct"})
-    STATIN = ("Statin", {"code": "387371005", "display": "Substance with 3-hydroxy-3-methylglutaryl-coenzyme A reductase inhibitor mechanism of action (substance)", "system": "http://snomed.info/sct"})
-    TICAGRELOR = ("Ticagrelor", {"code": "698805004", "display": "Ticagrelor (substance)", "system": "http://snomed.info/sct"})
-    TICLOPIDINE = ("Ticlopidine", {"code": "386950000", "display": "Ticlopidine (substance)", "system": "http://snomed.info/sct"})
-    WARFARIN = ("Warfarin", {"code": "372756006", "display": "Warfarin (substance)", "system": "http://snomed.info/sct"})
-    ALTEPLASE = ("Alteplase", {"code": "387152000", "display": "Alteplase (substance)", "system": "http://snomed.info/sct"})
-    TENECTEPLASE = ("Tenecteplase", {"code": "387066007", "display": "Tenecteplase (substance)", "system": "http://snomed.info/sct"})
-    STREPTOKINASE = ("Streptokinase", {"code": "395889004", "display": "Streptokinase (substance)", "system": "http://snomed.info/sct"})
-    PARACETAMOL = ("Paracetamol", {"code": "387517004", "display": "Paracetamol (substance)", "system": "http://snomed.info/sct"})
-    ANTICOAGULANT_REVERSAL = ("Anticoagulant Reversal", {"code": "419927001", "display": "Anticoagulant antagonist (substance)", "system": "http://snomed.info/sct"})
-    INSULIN = ("Insulin", {"code":"67866001", "display": "Insulin (substance)", "system": "http://snomed.info/sct"})
-    NIMODIPINE = ("Nimodipine", {"code": "387502003", "display": "Nimodipine (substance)", "system": "http://snomed.info/sct"})
-    NONE_MEDICATION = ("None", {"code": "none-medication", "display": "No Medication", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
-
 class IvtApplicationDepartment(ConceptEnum):
     RADIOLOGY = ("1", {"code": "HRAD", "display": "radiology unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     ICU = ("2", {"code": "ICU", "display": "Intensive Care Unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
@@ -218,7 +188,8 @@ class Locations(ConceptEnum):
     ICU = ("Critical care/icu", {"code": "ICU", "display": "Intensive Care Unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     NEUROSURGERY = ("Neurosurgery", {"code": "NS", "display": "Neurosurgery unit", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
     INTERNAL_MEDICINE = ("Internal Medicine", {"code": "GIM", "display": "General internal medicine clinic", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
-    OTHER = ("other", {"code": "other", "display": "Other Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})    
+    OTHER = ("other", {"code": "other", "display": "Other Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})
+    UNKNOWN = ("unknown", {"code": "unknown", "display": "Unknown Location", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})
 
 class FirstHospital(ConceptEnum):
     TRUE = ("True", {"code": "true", "display": "True", "system": "http://tecnomod-um.org/StructureDefinition/first-hospital-ext"})
@@ -229,6 +200,7 @@ class HospitalizedIn(ConceptEnum):
     ICU_STROKE_UNIT = ("1", {"code": "icu-stroke", "display": "ICU / Stroke Unit", "system": "http://tecnomod-um.org/CodeSystem/initial-care-intensity-cs"})
     MONITORED = ("2", {"code": "monitored", "display": "Monitored Bed", "system": "http://tecnomod-um.org/CodeSystem/initial-care-intensity-cs"})
     STANDARD = ("3", {"code": "standard", "display": "Standard Bed", "system": "http://tecnomod-um.org/CodeSystem/initial-care-intensity-cs"})
+    UNKNOWN = ("", {"code": "unknown", "display": "Unknown", "system": "http://tecnomod-um.org/CodeSystem/initial-care-intensity-cs"})
 
 class ImagingDone(ConceptEnum):
     YES = ("1", {"code": "yes", "display": "Yes", "system": ""})
@@ -336,6 +308,7 @@ class ObservationMethods(ConceptEnum):
     LAB = ("Laboratory", {"code": "15220000", "display": "Laboratory test (procedure)", "system": "http://snomed.info/sct"})
     POINTOFCARE=("Point of Care", {"code": "405262001", "display": "Point of care (qualifier value)", "system": "http://snomed.info/sct"})
     VENTILATED = ("Ventilated", {"code": "40617009", "display": "Artificial ventilation (regime/therapy)", "system": "http://snomed.info/sct"})
+    NO_ANTICOAGULATION = ("No Anticoagulation", {"code": "413560001", "display": "Anticoagulation not indicated (situation)", "system": "http://snomed.info/sct"})
     
 class ProcedureNotDoneReason(ConceptEnum):
     DONE_ELSEWHERE = ("Done Elsewhere", {"code": "done-elsewhere", "display": "Performed Elsewhere", "system": "http://tecnomod-um.org/CodeSystem/stroke-proc-not-done-reason-cs"})
@@ -584,7 +557,6 @@ class BodySites(ConceptEnum):
     INTRAVENTRICULAR = ("Intraventricular", {"code": "180955002", "display": "Structure of intraventricular meninges of brain (body structure)", "system": "http://snomed.info/sct"})
 
 
-    
 
 class RiskFactor(ConceptEnum):
     AtrialFibrillation = ("AtrialFibrillation", {"code": "49436004", "display": "Atrial fibrillation (disorder)", "system": "http://snomed.info/sct"})
@@ -603,27 +575,47 @@ class RiskFactor(ConceptEnum):
     Non_Smoker = ("Non-Smoker", {"code": "8392000", "display": "Non-smoker (finding)", "system": "http://snomed.info/sct"})
     Ex_Smoker = ("Ex-Smoker", {"code": "8517006", "display": "Ex-smoker (finding)", "system": "http://snomed.info/sct"})
     VTE = ("VTE", {"code": "429098002", "display": "Thromboembolism of vein (disorder)", "system": "http://snomed.info/sct"})
-
-
-
+    ALCOHOL = ("Alcohol", {"code": "66590003", "display": "Alcohol dependence (disorder)", "system": "http://snomed.info/sct"})
+    SLEEP_APNEA = ("Sleep Apnea", {"code": "73430006", "display": "Sleep apnea (disorder)", "system": "http://snomed.info/sct"})
     
 class Bool(ConceptEnum):
     TRUE = ("True", {"code": "true", "display": "True", "system": "http://hl7.org/fhir/bool"})
     FALSE = ("False", {"code": "false", "display": "False", "system": "http://hl7.org/fhir/bool"})
+    
 
-class DischargeMedication(ConceptEnum):
-    ANTIPLATELET = ("Antiplatelet", {"code": "antiplatelet", "display": "Any Antiplatelet", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    ANTICOAGULANT = ("Anticoagulant", {"code": "anticoagulant", "display": "Any Anticoagulant", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    ASPIRIN = ("Aspirin", {"code": "asa", "display": "Aspirin", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    HEPARIN = ("Heparin", {"code": "heparin", "display": "Heparin", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    WARFARIN = ("Warfarin", {"code": "warfarin", "display": "Warfarin", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    STATIN = ("Statin", {"code": "statin", "display": "Statin", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    ANTIDIABETIC = ("Antidiabetic", {"code": "antidiabetics", "display": "Antidiabetics", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    ANTIHYPERTENSIVE = ("Antihypertensive", {"code": "antihypertensive", "display": "Antihypertensive", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    OTHER_ANTIPLATELET = ("Other Antiplatelet", {"code": "other-antiplatelet", "display": "Other Antiplatelet", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    CLOPIDOGREL = ("Clopidogrel", {"code": "clopidogrel", "display": "Clopidogrel", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    CONTRACEPTION = ("Contraception", {"code": "contraception", "display": "Contraception", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
-    OTHER = ("Other", {"code": "other", "display": "Other", "system": "http://tecnomod-um.org/CodeSystem/discharge-medication-cs"})
+class Medications(ConceptEnum):
+    ANTIDIABETIC = ("Antidiabetic", {"code": "antidiabetic", "display": "Any Antidiabetic", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})    
+    ANTIHYPERTENSIVE = ("Antihypertensive", {"code": "372586001", "display": "Hypotensive agent (substance)", "system": "http://snomed.info/sct"})
+    ANTICOAGULANT = ("Anticoagulant", {"code": "372862008", "display": "Anticoagulant (substance)", "system": "http://snomed.info/sct"})
+    ANTIPLATELET = ("Antiplatelet", {"code": "antiplatelet", "display": "Any Antiplatelet", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
+    APIXABAN = ("Apixaban", {"code": "698090000", "display": "Apixaban (substance)", "system": "http://snomed.info/sct"})
+    ASA = ("ASA", {"code": "387458008", "display": "Aspirin (substance)", "system": "http://snomed.info/sct"})
+    CILOSTOLAZOL = ("Cilostazol", {"code": "116087001", "display": "Cilostazol (substance)", "system": "http://snomed.info/sct"})
+    CLOPIDOGREL = ("Clopidogrel", {"code": "386952008", "display": "Clopidogrel (substance)", "system": "http://snomed.info/sct"})    
+    CONTRACEPTION = ("Contraception", {"code": "312263009", "display": "Sex hormone (substance)", "system": "http://snomed.info/sct"})
+    DABIGATRAN = ("Dabigatran", {"code": "698871007", "display": "Dabigatran (substance)", "system": "http://snomed.info/sct"})
+    DIPYRIDAMOLE = ("Dipyridamole", {"code": "387371005", "display": "Dipyridamole (substance)", "system": "http://snomed.info/sct"})
+    EDOXABAN = ("Edoxaban", {"code": "712778008", "display": "Edoxaban (substance)", "system": "http://snomed.info/sct"})
+    HEPARIN = ("Heparin", {"code": "372877000", "display": "Heparin (substance)", "system": "http://snomed.info/sct"})
+    OTHER_ANTICOAGULANT = ("Other Anticoagulant", {"code": "other-anticoagulant", "display": "Other Anticoagulant", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
+    OTHER_ANTIPLATELET = ("Other Antiplatelet", {"code": "other-antiplatelet", "display": "Other Antiplatelet", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
+    PLASUGREL = ("Plasugrel", {"code": "443129001", "display": "Prasugrel (substance)", "system": "http://snomed.info/sct"})
+    RIVAROXABAN = ("Rivaroxaban", {"code": "442031002", "display": "Rivaroxaban (substance)", "system": "http://snomed.info/sct"})
+    STATIN = ("Statin", {"code": "372912004", "display": "Substance with 3-hydroxy-3-methylglutaryl-coenzyme A reductase inhibitor mechanism of action (substance)", "system": "http://snomed.info/sct"})
+    TICAGRELOR = ("Ticagrelor", {"code": "698805004", "display": "Ticagrelor (substance)", "system": "http://snomed.info/sct"})
+    TICLOPIDINE = ("Ticlopidine", {"code": "386950000", "display": "Ticlopidine (substance)", "system": "http://snomed.info/sct"})
+    WARFARIN = ("Warfarin", {"code": "372756006", "display": "Warfarin (substance)", "system": "http://snomed.info/sct"})
+    ALTEPLASE = ("Alteplase", {"code": "387152000", "display": "Alteplase (substance)", "system": "http://snomed.info/sct"})
+    TENECTEPLASE = ("Tenecteplase", {"code": "127967007", "display": "Product containing tenecteplase (medicinal product)", "system": "http://snomed.info/sct"})
+    STREPTOKINASE = ("Streptokinase", {"code": "395889004", "display": "Streptokinase (substance)", "system": "http://snomed.info/sct"})
+    PARACETAMOL = ("Paracetamol", {"code": "387517004", "display": "Paracetamol (substance)", "system": "http://snomed.info/sct"})
+    ANTICOAGULANT_REVERSAL = ("Anticoagulant Reversal", {"code": "419927001", "display": "Anticoagulant antagonist (substance)", "system": "http://snomed.info/sct"})
+    INSULIN = ("Insulin", {"code":"67866001", "display": "Insulin (substance)", "system": "http://snomed.info/sct"})
+    NIMODIPINE = ("Nimodipine", {"code": "387502003", "display": "Nimodipine (substance)", "system": "http://snomed.info/sct"})
+    NONE_MEDICATION = ("None", {"code": "none-medication", "display": "No Medication", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
+    ANY_ANTICOAGULANT = ("Any Anticoagulant", {"code": "anticoagulant", "display": "Any Anticoagulant", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
+    OTHER_MEDICATION = ("Other", {"code": "other", "display": "Other", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
+
 
 class InsulinOnHyperglycemiaTiming(ConceptEnum):
     WITHIN_1_HOUR = ("1", {"code": "T1H", "display": "Within 1 Hour", "system": "http://tecnomod-um.org/CodeSystem/insulin-hyperglycemia-time-cs"})
@@ -808,7 +800,7 @@ class GlasgowComaScale(ConceptEnum):
     GCS = ("GCS", {"code": "386557006", "display": "Glasgow coma scale finding (finding)", "system": "http://snomed.info/sct"})
     GCScore = ("GCScore", {"code": "248241002", "display": "Glasgow coma score (observable entity)", "system": "http://snomed.info/sct"})
 
-class NotMedicationReason(ConceptEnum):
+class NotMedicationReason(ConceptEnum):  
     ALLERGY = ("Allergy", {"code": "609328004", "display": "Allergy disposition (finding)", "system": "http://snomed.info/sct"})
     MENTAL_STATUS = ("Mental Status", {"code": "36456004", "display": "Mental state finding (finding)", "system": "http://snomed.info/sct"})
     REFUSED = ("Refused", {"code": "443390004", "display": "Declined (qualifier value)", "system": "http://snomed.info/sct"})

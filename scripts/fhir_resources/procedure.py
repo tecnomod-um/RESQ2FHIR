@@ -478,7 +478,8 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 status="not-done",
                 code=CodeableConcept(coding=[VteProcedures.VTE_INTERVENTION.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             )]
     else:
         procedure_list = []
@@ -487,56 +488,64 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 status="completed",
                 code=CodeableConcept(coding=[VteProcedures.STOCKINGS.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_ipc is True:
             procedure_list.append(Procedure(
                 status="completed",
                 code=CodeableConcept(coding=[VteProcedures.IPC.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_lmwh is True:
             procedure_list.append(Procedure(
                 status="completed",
                 code=CodeableConcept(coding=[VteProcedures.LMWH.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_other is True:
             procedure_list.append(Procedure(
                 status="completed",
                 code=CodeableConcept(coding=[VteProcedures.OTHER.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_ufh is True:
             procedure_list.append(Procedure(
                 status="completed",
                 code=CodeableConcept(coding=[VteProcedures.UFH.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_vfp is True:
             procedure_list.append(Procedure(
                 status="completed",
                 code=CodeableConcept(coding=[VteProcedures.VFP.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_warfarin is True:
             procedure_list.append(Procedure(
                 status="completed",
                 code=CodeableConcept(coding=[VteProcedures.VTE_WARFARIN.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_xa_inhibitor is True:
             procedure_list.append(Procedure(
                 status="completed",
                 code=CodeableConcept(coding=[VteProcedures.XA_INHIBITOR.to_coding()]),
                 subject=Reference(reference=patient_ref),
-                encounter=Reference(reference=encounter_ref)
+                encounter=Reference(reference=encounter_ref),
+                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
     return procedure_list
 
@@ -564,7 +573,8 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code=CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()])
+        code=CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_hematoma_evacuation = Procedure(
@@ -572,7 +582,8 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code=CodeableConcept(coding=[IchTreatment.HEMATOMA_EVACUATION.to_coding()])
+        code=CodeableConcept(coding=[IchTreatment.HEMATOMA_EVACUATION.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_open_craniectomy = Procedure(
@@ -580,7 +591,8 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code=CodeableConcept(coding=[IchTreatment.OPEN_CRANIECTOMY.to_coding()])
+        code=CodeableConcept(coding=[IchTreatment.OPEN_CRANIECTOMY.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     
@@ -589,7 +601,8 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code=CodeableConcept(coding=[IchTreatment.STEREOTACTIC_ASPIRATION.to_coding()])
+        code=CodeableConcept(coding=[IchTreatment.STEREOTACTIC_ASPIRATION.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     
     procedure_ventricular_drainage = Procedure(
@@ -597,7 +610,8 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code=CodeableConcept(coding=[IchTreatment.VENTRICULAR_DRAINAGE.to_coding()])
+        code=CodeableConcept(coding=[IchTreatment.VENTRICULAR_DRAINAGE.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     
 
@@ -679,35 +693,40 @@ def build_sah_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code = CodeableConcept(coding=[IchTreatment.CLIPPING.to_coding()])
+        code = CodeableConcept(coding=[IchTreatment.CLIPPING.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     procedure_coiling = Procedure(
         status="not-done",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code = CodeableConcept(coding=[IchTreatment.COILING.to_coding()])
+        code = CodeableConcept(coding=[IchTreatment.COILING.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     procedure_craniectomy = Procedure(
         status="not-done",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code = CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()])
+        code = CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     procedure_drainage = Procedure(
         status="not-done",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code = CodeableConcept(coding=[IchTreatment.VENTRICULAR_DRAINAGE.to_coding()])
+        code = CodeableConcept(coding=[IchTreatment.VENTRICULAR_DRAINAGE.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     procedure_other = Procedure(
         status="not-done",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code = CodeableConcept(coding=[IchTreatment.OTHER.to_coding()])
+        code = CodeableConcept(coding=[IchTreatment.OTHER.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     
@@ -753,7 +772,8 @@ def build_cvt_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code= CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()])
+        code= CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_thrombectomy = Procedure(
@@ -761,7 +781,8 @@ def build_cvt_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code= CodeableConcept(coding=[PerforationProcedures.THROMBECTOMY.to_coding()])
+        code= CodeableConcept(coding=[PerforationProcedures.THROMBECTOMY.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_thrombolysis = Procedure(
@@ -769,7 +790,8 @@ def build_cvt_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
-        code= CodeableConcept(coding=[PerforationProcedures.THROMBOLYSIS.to_coding()])
+        code= CodeableConcept(coding=[PerforationProcedures.THROMBOLYSIS.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_anticoagulation = Procedure(
@@ -778,6 +800,7 @@ def build_cvt_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code= CodeableConcept(coding=[IchTreatment.ANTICOAGULATION.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"]),
         partOf=[Reference(reference=condition_ref)]
     )
 

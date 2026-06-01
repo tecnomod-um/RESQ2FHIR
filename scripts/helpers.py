@@ -99,7 +99,7 @@ def get_on_discharge_medications(raw: dict):
         "discharge_asa": Medications.ASA,
         "discharge_clopidogrel": Medications.CLOPIDOGREL,
         "discharge_contraception": Medications.CONTRACEPTION,
-        "discharge_other": DischargeMedication.OTHER,
+        "discharge_other": Medications.OTHER_MEDICATION,
         "discharge_statin": Medications.STATIN,
         "discharge_warfarin": Medications.WARFARIN,
         #"discharge_any_antithrombotics": Medications.ANTITHROMBOTIC,
@@ -165,7 +165,9 @@ def get_risk_factors(raw: dict):
         "risk_congestive_heart_failure": RiskFactor.CongestiveHeartFailure,
         "risk_covid": RiskFactor.COVID,
         "risk_hiv": RiskFactor.HIV,
-        "risk_vte": RiskFactor.VTE
+        "risk_vte": RiskFactor.VTE,
+        "risk_alcohol_overuse": RiskFactor.ALCOHOL,
+        "risk_sleep_apnea": RiskFactor.SLEEP_APNEA,
     }
 
     for key, med in mapping.items():
