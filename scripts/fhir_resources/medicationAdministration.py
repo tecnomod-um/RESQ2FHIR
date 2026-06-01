@@ -256,27 +256,6 @@ def build_insulin_on_hyperglycemia(patient_ref:str, encounter_ref:str, observati
     return medicationAdministration
 
 
-def build_no_anticoagulant_discharge_medicationAdministration(patient_ref:str, encounter_ref:str, no_anticoagulant_discharge_reason:NoAnticoagulantReason) -> MedicationAdministration:
-    """
-    Build a FHIR MedicationAdministration resource for no anticoagulant discharge administration.
-    
-    Args:
-        patient_ref: Reference to the Patient resource
-        encounter_ref: Reference to the Encounter resource
-        no_anticoagulant_discharge_reason: The reason for no anticoagulant discharge administration
-    Returns:
-        MedicationAdministration resource for no anticoagulant discharge administration
-    """
-    medicationAdministration = MedicationAdministration(
-        status="not-done",
-        subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref),
-        medication=CodeableReference(concept=CodeableConcept(coding=[Medications.ANTICOAGULANT.to_coding()]))
-        )
-    
-    medicationAdministration.statusReason = [CodeableConcept(coding=[no_anticoagulant_discharge_reason.to_coding()])]
-    return medicationAdministration
-
 def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str, reference_time: str, condition_ref: str | None = None, procedure_ref:str | None = None, medication_range_timing: Nimodipinetiming | None = None) -> MedicationAdministration:
     """
     Build a FHIR MedicationAdministration resource for nimodipine administration.

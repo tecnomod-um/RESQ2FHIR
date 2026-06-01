@@ -165,7 +165,9 @@ def get_risk_factors(raw: dict):
         "risk_congestive_heart_failure": RiskFactor.CongestiveHeartFailure,
         "risk_covid": RiskFactor.COVID,
         "risk_hiv": RiskFactor.HIV,
-        "risk_vte": RiskFactor.VTE
+        "risk_vte": RiskFactor.VTE,
+        "risk_alcohol_overuse": RiskFactor.ALCOHOL,
+        "risk_sleep_apnea": RiskFactor.SLEEP_APNEA,
     }
 
     for key, med in mapping.items():

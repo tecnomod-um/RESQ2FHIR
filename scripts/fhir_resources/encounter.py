@@ -26,9 +26,9 @@ def build_stroke_encounter_profile(
     inhospital_stroke: bool | None = None,
     hospital_timestamp: str | None = None,
     discharge_date: str | None = None,
-    first_hospital: bool = False,
     post_acute_care: bool = False,
     ems_prenotification: bool = False,
+    first_hospital_ref: str | None = None,
 ) -> Encounter:    
     """
     Build a FHIR Encounter resource for stroke care.
@@ -48,7 +48,8 @@ def build_stroke_encounter_profile(
         first_hospital: Boolean indicating if this is the first hospital the patient was admitted to for this stroke event
         post_acute_care: Boolean indicating if post-acute care is required for the patient after discharge
         ems_prenotification: Boolean indicating if EMS prenotification was done for the patient before arrival at the hospital
-        
+        transferred_from_hospital_ref: Reference to the hospital from which the patient was transferred
+        discharged_hospital_ref: Reference to the hospital where the patient was discharged
     Returns:
         Encounter resource for stroke care 
     """
@@ -87,16 +88,13 @@ def build_stroke_encounter_profile(
 
     encounter.location = location_list
 
-    if first_hospital:
-        extension_list.append(Extension(
+    
+    extension_list.append(Extension(
             url="http://tecnomod-um.org/StructureDefinition/first-hospital-ext",
-            valueBoolean=True
+            valueReference=Reference(reference=first_hospital_ref)
         ))
-    else:
-        extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/first-hospital-ext",
-            valueBoolean=False
-        ))
+    
+
 
     if discharge_facility_department is not None:
         extension_list.append(Extension(

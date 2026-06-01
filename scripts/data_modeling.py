@@ -15,7 +15,7 @@ from scripts.fhir_resources.organization import build_organization
 from scripts.fhir_resources.patient import build_Patient
 from scripts.fhir_resources.encounter import build_stroke_encounter_profile
 from scripts.fhir_resources.condition import build_post_stroke_conditions, build_stroke_diagnosis_condition_profile, build_risk_factor_condition_profile
-from scripts.fhir_resources.observation import build_CHA2S2_VASc_observation, build_abcd2_score_observation, build_appointment_observation, build_door_to_anticoagulant_reversal_observation, build_door_to_discharge_observation, build_door_to_door_observation, build_door_to_reperfusion_observation, build_door_to_sys_bp_lt140_observation, build_groin_to_reperfusion_observation, build_highest_systolic_pressure_after24h_observation, build_observation_aspect_score, build_observation_blood_volume, build_observation_carotid_stenosis, build_observation_cholesterol, build_observation_fever, build_observation_finding_post_ivt_mt, build_observation_ge10, build_observation_glasgow_coma_scale_level, build_observation_glasgow_coma_scale_score, build_observation_glucose, build_observation_highest_hyperglycemia_value, build_observation_hunt_hess_score, build_observation_hyperglycemia_measurement_checks, build_observation_inr, build_observation_occluded_artery, build_observation_old_infarcts_brainstem, build_observation_patient_ventilated, build_observation_perfusion, build_observation_temp_checks, build_observation_three_month_contact_mode, build_observation_vital_signs, build_observation_mrs, build_observation_nihss, build_observation_mtici_score, build_observation_age, build_onset_to_door_observation, build_systolic_pressure_lt140_observation, build_thrive_score_observation, build_tia_clinical_symptomps_observation, build_timing_d2g_le120_observation, build_timing_d2g_le90_observation, build_timing_d2g_observation, build_timing_d2n_le45_observation, build_timing_d2n_le60_observation, build_timing_d2n_observation, build_timing_discharge_to_three_months_contact_observation, build_timing_door_to_ich_evacuation_observation, build_timing_door_to_ich_evacuation_observation, build_timing_door_to_imaging_observation, build_timing_door_to_iv_antihypertensive_observation, build_observation_Af_or_F
+from scripts.fhir_resources.observation import build_CHA2S2_VASc_observation, build_abcd2_score_observation, build_appointment_observation, build_door_to_anticoagulant_reversal_observation, build_door_to_discharge_observation, build_door_to_door_observation, build_door_to_reperfusion_observation, build_door_to_sys_bp_lt140_observation, build_groin_to_reperfusion_observation, build_highest_systolic_pressure_after24h_observation, build_no_anticoagulant_discharge_medication, build_observation_aspect_score, build_observation_blood_volume, build_observation_carotid_stenosis, build_observation_cholesterol, build_observation_fever, build_observation_finding_post_ivt_mt, build_observation_ge10, build_observation_glasgow_coma_scale_level, build_observation_glasgow_coma_scale_score, build_observation_glucose, build_observation_highest_hyperglycemia_value, build_observation_hunt_hess_score, build_observation_hyperglycemia_measurement_checks, build_observation_inr, build_observation_occluded_artery, build_observation_old_infarcts_brainstem, build_observation_patient_ventilated, build_observation_perfusion, build_observation_temp_checks, build_observation_three_month_contact_mode, build_observation_vital_signs, build_observation_mrs, build_observation_nihss, build_observation_mtici_score, build_observation_age, build_onset_to_door_observation, build_systolic_pressure_lt140_observation, build_thrive_score_observation, build_tia_clinical_symptomps_observation, build_timing_d2g_le120_observation, build_timing_d2g_le90_observation, build_timing_d2g_observation, build_timing_d2n_le45_observation, build_timing_d2n_le60_observation, build_timing_d2n_observation, build_timing_discharge_to_three_months_contact_observation, build_timing_door_to_ich_evacuation_observation, build_timing_door_to_ich_evacuation_observation, build_timing_door_to_imaging_observation, build_timing_door_to_iv_antihypertensive_observation, build_observation_Af_or_F
 from scripts.fhir_resources.practitionerRole import build_practitioner
 from scripts.fhir_resources.procedure import build_carotid_imaging_procedure, build_craniectomy_procedure, build_cvt_treatment_procedure, build_endarterectomy_procedure, build_ich_treatment_procedure, build_imaging_procedure, build_occupational_therapy_procedure, build_physioterapy_procedure, build_post_neurosurgery_imaging_procedure, build_post_recanalization_imaging_procedure, build_sah_treatment_procedure, build_speech_therapy_procedure, build_thrombolysis_procedure, build_thrombectomy_procedure, build_swallowing_screening_procedure, build_vte_procedure
 from scripts.fhir_resources.medicationStatement import build_before_onset_medicationStatement_profile
@@ -60,12 +60,15 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
     procedure_imaging_ref = ""
     procedure_ich_treatment_ref = ""
     medicationAdministration_iv_antihypertensive_ref = ""
+    transferred_from_hosp_loc_ref = get_uuid()
+    organization_ref = get_uuid()
 ########################## 0. Admission Data ##########################
 
     ########################## 0.1. Organization ##########################
     hospital_name = safe_get(raw, "provider", required=False)
     organization = build_organization(str(hospital_name), provider_id=safe_get(raw, "provider_id", required=False))
-    entries = [BundleEntry(fullUrl=get_uuid(), resource=organization, request=BundleEntryRequest(method="POST", url="Organization"))] # Initialize entries list with Organization resource built from hospital_name in raw data, field required
+    first_hospital_ref = organization_ref
+    entries = [BundleEntry(fullUrl=organization_ref, resource=organization, request=BundleEntryRequest(method="POST", url="Organization"))] # Initialize entries list with Organization resource built from hospital_name in raw data, field required
 
     ########################## 0.2. Patient ##########################
     sex = safe_get(raw, "sex", required=False) # Obtain sex from raw data, field not required
@@ -83,14 +86,22 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
         first_location_ref = get_uuid()
         entries.append(BundleEntry(fullUrl=first_location_ref, resource=first_location, request=BundleEntryRequest(method="POST", url="Location")))
     hospitalized_in = safe_get(raw, "hospitalized_in", required=False)
-    hosp_loc_ref = ""
-    if hospitalized_in is not None:
-        admission_department = safe_get(raw, "admission_department", required=False)
-        if admission_department is not None:
+    hosp_loc_ref = get_uuid()
+    if hospitalized_in is None:
+        hospitalized_in = ""
+    admission_department = safe_get(raw, "admission_department", required=False)
+    if admission_department is None:
+        admission_department = ""
             # Create hospitalized_in extension
-            hosp_loc = build_hospitalized_location(HospitalizedIn.by_id(hospitalized_in), AdmissionDepartment.by_id(admission_department))
-            hosp_loc_ref = get_uuid()
-            entries.append(BundleEntry(fullUrl=hosp_loc_ref, resource=hosp_loc, request=BundleEntryRequest(method="POST", url="Location")))
+    hosp_loc = build_hospitalized_location(HospitalizedIn.by_id(hospitalized_in), AdmissionDepartment.by_id(admission_department))
+
+    entries.append(BundleEntry(fullUrl=hosp_loc_ref, resource=hosp_loc, request=BundleEntryRequest(method="POST", url="Location")))
+    transferred_from_hospital = safe_get(raw, "transferred_from_hospital", required=False)
+    if transferred_from_hospital is not None and transferred_from_hospital != "":
+        transferred_from_hosp_loc = build_organization(str(transferred_from_hospital)) # Build Organization resource for transferring hospital using Locations enum, field not required
+        first_hospital_ref = get_uuid()
+        entries.append(BundleEntry(fullUrl=transferred_from_hosp_loc_ref, resource=transferred_from_hosp_loc, request=BundleEntryRequest(method="POST", url="Organization")))
+
 
     hospital_timestamp = safe_get(raw, "hospital_timestamp", required=False)
     encounter = build_stroke_encounter_profile(patient_ref=patient_ref, # Build Encounter resource using patient_ref and other relevant data from raw
@@ -106,7 +117,8 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                 discharge_date=safe_get(raw, "discharge_date", required=False), # Obtain discharge date from raw data, field not required
                                                 first_hospital=safe_get_bool(raw, "first_hospital", required=False, default=False), # Obtain first hospital boolean from raw data, field not required, default to False
                                                 post_acute_care=safe_get_bool(raw, "post_acute_care", required=False, default=False), # Obtain post-acute care boolean from raw data, field not required, default to False
-                                                ems_prenotification=safe_get_bool(raw, "ems_prenotification", required=False, default=False)) # Obtain EMS prenotification boolean from raw data, field not required, default to False
+                                                ems_prenotification=safe_get_bool(raw, "ems_prenotification", required=False, default=False),
+                                                first_hospital_ref=first_hospital_ref) # Obtain EMS prenotification boolean from raw data, field not required, default to False
     
     entries.append(BundleEntry(fullUrl=encounter_ref, resource=encounter, request=BundleEntryRequest(method="POST", url="Encounter")))
 
@@ -934,7 +946,14 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                         encounter_ref=encounter_ref,
                                                                         on_discharge_meds=meds): # Build MedicationRequest resources for medications prescribed at discharge using patient_ref, encounter_ref and list of medications prescribed at discharge from raw data, field not required
             entries.append(BundleEntry(fullUrl=get_uuid(), resource=med_request, request=BundleEntryRequest(method="POST", url="MedicationRequest")))
-
+        if Medications.ANTICOAGULANT not in meds:
+            no_anticoagulant_reason = safe_get(raw, "no_anticoagulants_reason", required=False)
+            if no_anticoagulant_reason is not None:
+                observation_no_anticoagulant = build_no_anticoagulant_discharge_medication(patient_ref=patient_ref,
+                                                                                        encounter_ref=encounter_ref,
+                                                                                        no_anticoagulant_discharge_reason=NotMedicationReason.by_id(no_anticoagulant_reason),
+                                                                                        ) # Build Observation resource for no anticoagulant prescribed at discharge using patient_ref, encounter_ref and boolean for any medication at discharge from raw data, field not required
+                entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_no_anticoagulant, request=BundleEntryRequest(method="POST", url="Observation")))
     ################################## 4.3 Follow-up appointment (Appointment) ######################################
     stroke_management_appointment = safe_get(raw, "stroke_management_appointment", required=False) # Check if follow-up appointment boolean is present in raw data, not required
     if stroke_management_appointment is not None:

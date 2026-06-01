@@ -12,7 +12,7 @@ from fhir.resources.range import Range
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.extension import Extension
 from scripts.enum_models import (
-    AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ManagementAppointment, ObservationMethods, ProcedureNotDoneReason, RiskFactor, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
+    AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ManagementAppointment, NoAnticoagulantReason, NotMedicationReason, ObservationMethods, ProcedureNotDoneReason, RiskFactor, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
     AssessmentContext, FunctionalScore, MTiciScore, SpecificFinding, UnitofMeasurement, TimingMetricCodes
 )
 from fhir.resources.meta import Meta 
@@ -466,7 +466,25 @@ def build_observation_Af_or_F(patient_ref: str, encounter_ref: str, atrial_fibri
 #         encounter=Reference(reference=encounter_ref),
 #     )
 
-
+def build_no_anticoagulant_discharge_medication(patient_ref:str, encounter_ref:str, no_anticoagulant_discharge_reason:NotMedicationReason) -> Observation:
+    """
+    Build a FHIR Observation resource for no anticoagulant discharge.
+     
+    Args:
+        patient_ref: Reference to the Patient resource
+        encounter_ref: Reference to the Encounter resource
+        no_anticoagulant_discharge_reason: The reason for no anticoagulant discharge 
+    Returns:
+        Observation resource for no anticoagulant discharge 
+    """
+    observation = Observation(
+        subject=Reference(reference=patient_ref),
+        encounter=Reference(reference=encounter_ref),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/no-anticoagulant-discharge-reason-observation-profile"]),
+        code=CodeableConcept(coding=[ObservationMethods.NO_ANTICOAGULATION.to_coding()]),
+        valueCodeableConcept=CodeableConcept(coding=[no_anticoagulant_discharge_reason.to_coding()]))
+    return observation
+                  
 def build_observation_age(age: int | None, patient_ref: str, encounter_ref: str) -> Observation:
     """
     Build a FHIR Observation resource for patient age.
