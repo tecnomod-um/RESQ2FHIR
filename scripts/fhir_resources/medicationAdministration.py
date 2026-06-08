@@ -13,8 +13,9 @@ from fhir.resources.meta import Meta
 from fhir.resources.coding import Coding
 from fhir.resources.timing import Timing
 from fhir.resources.period import Period
+from pydantic import InstanceOf
 
-from scripts.enum_models import InsulinOnHyperglycemiaTiming, Medications, Nimodipinetiming, NoAnticoagulantReason, NotMedicationReason, ParacetamolOnFeverTiming, PostAcuteCare, UnitofMeasurement
+from scripts.enum_models import InsulinOnHyperglycemiaTiming, IvtDrug, Medications, Nimodipinetiming, NoAnticoagulantReason, NotMedicationReason, ParacetamolOnFeverTiming, PostAcuteCare, UnitofMeasurement
 from scripts.utils import parse_datetime
 
 
@@ -56,16 +57,16 @@ def build_ivt_medicationAdministration(ivt_drug_dose,ivt_drug, patient_ref, enco
     medicationAdministration = MedicationAdministration(
         status="completed",
         subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref))
+        encounter=Reference(reference=encounter_ref),
+        medication = CodeableReference(concept=CodeableConcept(coding=[Medications.by_id(ivt_drug).to_coding()]))
+    )
     
-    medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[Medications.by_id(ivt_drug).to_coding()]))
-
     dosage = MedicationAdministrationDosage(dose=Quantity(value=Decimal(ivt_drug_dose), unit=UnitofMeasurement.MG.display, system=UnitofMeasurement.MG.system, code=UnitofMeasurement.MG.code))
     medicationAdministration.dosage = dosage
 
     return medicationAdministration
 
-def build_medicationAdministration(patient_ref: str, encounter_ref: str, medication: Medications, medication_timestamp: str | None = None, condition_ref: str | None = None, procedure_ref: str | None = None, observation_ref: str | None = None, dose: int | None = None, medication_post_acute: bool | None = None, medication_range_timing: ParacetamolOnFeverTiming | None = None, no_medication_reason: NotMedicationReason | None = None, reference_time: str | None = None) -> MedicationAdministration:
+def build_medicationAdministration(patient_ref: str, encounter_ref: str, medication: Medications | IvtDrug | str, medication_timestamp: str | None = None, condition_ref: str | None = None, procedure_ref: str | None = None, observation_ref: str | None = None, dose: int | None = None, medication_post_acute: bool | None = None, medication_range_timing: ParacetamolOnFeverTiming | None = None, no_medication_reason: NotMedicationReason | None = None, reference_time: str | None = None) -> MedicationAdministration:
     """
     Build a FHIR MedicationAdministration resource.
     
@@ -82,6 +83,14 @@ def build_medicationAdministration(patient_ref: str, encounter_ref: str, medicat
     Returns:
         MedicationAdministration resource 
     """
+
+    if isinstance(medication,Medications):
+        med = CodeableReference(concept=CodeableConcept(coding=[medication.to_coding()]))
+    elif isinstance(medication,IvtDrug):
+        med = CodeableReference(concept=CodeableConcept(coding=[medication.to_coding()]))
+    elif medication:
+        med = CodeableReference(reference=Reference(reference=medication))
+    
     if medication_timestamp is None and reference_time is not None:
         ref_timestamp = parse_datetime(reference_time)
         if ref_timestamp is not None:
@@ -94,7 +103,8 @@ def build_medicationAdministration(patient_ref: str, encounter_ref: str, medicat
                 status="completed",
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                occurencePeriod=period
+                occurencePeriod=period,
+                medication=med
                 )
 
 
@@ -103,10 +113,12 @@ def build_medicationAdministration(patient_ref: str, encounter_ref: str, medicat
             status="completed",
             subject=Reference(reference=patient_ref),
             encounter=Reference(reference=encounter_ref),
-            occurenceDateTime = parse_datetime(medication_timestamp)
+            occurenceDateTime = parse_datetime(medication_timestamp),
+            medication=med
             )
     
-    medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[medication.to_coding()]))
+
+
     reason_list = []
     if condition_ref is not None:
         reason_list.append(CodeableReference(reference=Reference(reference=condition_ref)))

@@ -248,10 +248,8 @@ def build_observation_blood_volume(patient_ref: str, encounter_ref: str, bleedin
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"]),
+        code=CodeableConcept(coding=[SpecificFinding.BLOOD_VOLUME.to_coding()])
     )
-    specific_finding_coding = SpecificFinding.BLOOD_VOLUME.to_coding()
-    code_bleeding_volume = CodeableConcept(coding=[specific_finding_coding])
-    observation.code = code_bleeding_volume
     coding_category = Coding(
         system="http://terminology.hl7.org/CodeSystem/observation-category",
         code="exam",
@@ -482,7 +480,9 @@ def build_no_anticoagulant_discharge_medication(patient_ref:str, encounter_ref:s
         encounter=Reference(reference=encounter_ref),
         meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/no-anticoagulant-discharge-reason-observation-profile"]),
         code=CodeableConcept(coding=[ObservationMethods.NO_ANTICOAGULATION.to_coding()]),
-        valueCodeableConcept=CodeableConcept(coding=[no_anticoagulant_discharge_reason.to_coding()]))
+        valueCodeableConcept=CodeableConcept(coding=[no_anticoagulant_discharge_reason.to_coding()]),
+        status="final"
+    )
     return observation
                   
 def build_observation_age(age: int | None, patient_ref: str, encounter_ref: str) -> Observation:
@@ -776,8 +776,13 @@ def build_highest_systolic_pressure_after24h_observation(highest_systolic_pressu
     Returns:
         Observation resource for highest systolic blood pressure after 24 hours
     """
-    timing_obj = TimingMetricCodes.HIGHEST_SYS_BP_AFTER24H.to_coding()
+    timing_obj = VitalSigns.SYSTOLIC.to_coding()
     code_timing = CodeableConcept(coding=[timing_obj])
+    extension = Extension(
+        url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+        valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.POST_ACUTE.to_coding()])
+    )
+    extension_list = [extension]
     
     return Observation(
         status="final",
@@ -790,7 +795,8 @@ def build_highest_systolic_pressure_after24h_observation(highest_systolic_pressu
             unit=UnitofMeasurement.MMGM.display,
             system=UnitofMeasurement.MMGM.system,
             code=UnitofMeasurement.MMGM.code
-        )
+        ),
+        extension=extension_list
     )
 
 def build_systolic_pressure_lt140_observation(patient_ref: str, encounter_ref: str, systolic_pressure_lt140:bool, systolic_pressure_lt140_timestamp = None) -> Observation:
@@ -1083,7 +1089,7 @@ def build_observation_glucose(glucose: float | None, patient_ref: str, encounter
         code=CodeableConcept(),
         status="final"
     )
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/analitics-observation-profile"])
+    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/analytics-observation-profile"])
     glucose_coding = AnaliticsCodes.GLUCOSE.to_coding()
     code_glucose = CodeableConcept(coding=[glucose_coding])
     observation.code = code_glucose
@@ -1159,7 +1165,7 @@ def build_observation_cholesterol(cholesterol: float, patient_ref: str, encounte
         code=CodeableConcept(),
         status="final"
     )
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/analitics-observation-profile"])
+    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/analytics-observation-profile"])
     cholesterol_coding = AnaliticsCodes.CHOLESTEROL.to_coding()
     code_cholesterol = CodeableConcept(coding=[cholesterol_coding])
     observation.code = code_cholesterol
@@ -1609,21 +1615,24 @@ def build_observation_finding_post_ivt_mt(patient_ref: str, encounter_ref: str,p
         code=CodeableConcept(coding=[SpecificFinding.BRAIN_INFARCT.to_coding()]),
         status="final",
         subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref)
+        encounter=Reference(reference=encounter_ref),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"])
     )
 
     observation_remote_bleeding = Observation(
         code=CodeableConcept(coding=[SpecificFinding.INTRACRANIAL_HEMORRHAGE.to_coding()]),
         status="final",
         subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref)
+        encounter=Reference(reference=encounter_ref),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"])
     )
 
     observation_hemorrhagic_transformation = Observation(
         code=CodeableConcept(coding=[SpecificFinding.HEMORRHAGIC_TRANSFORMATION.to_coding()]),
         status="final",
         subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref)
+        encounter=Reference(reference=encounter_ref),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"])
     )
 
 

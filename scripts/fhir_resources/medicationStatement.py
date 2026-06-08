@@ -8,11 +8,13 @@ from fhir.resources.reference import Reference
 from fhir.resources.codeablereference import CodeableReference
 from fhir.resources.coding import Coding
 from fhir.resources.codeableconcept import CodeableConcept
-from scripts.enum_models import AdherenceCodes
+from scripts.enum_models import AdherenceCodes, Medications
 from fhir.resources.meta import Meta
 
+from scripts.utils import parse_datetime
 
-def build_before_onset_medicationStatement_profile(medications_list: list, patient_ref: str, encounter_ref: str):
+
+def build_before_onset_medicationStatement_profile(medications_list: list, patient_ref: str, encounter_ref: str, intracerebral_hemorrhage: bool = False, prestroke_noac_timestamp: str | None = None) -> list:
     """
     Build FHIR MedicationStatement resources for medications taken before stroke onset.
     
@@ -25,7 +27,8 @@ def build_before_onset_medicationStatement_profile(medications_list: list, patie
         medications_list: List of medication data dictionaries containing medication information and adherence status
         patient_ref: Reference to the Patient resource
         encounter_ref: Reference to the Encounter resource
-        
+        intracerebral_hemorrhage: Boolean indicating if the patient had an intracerebral hemorrhage
+        prestroke_noac_timestamp: Timestamp for the pre-stroke NOAC medication
     Returns:
         List of MedicationStatement resources
         
@@ -46,12 +49,8 @@ def build_before_onset_medicationStatement_profile(medications_list: list, patie
 
         # Create a MedicationStatement for each medication in this status group
         for bom in meds:
-            coding_bom = Coding(
-                system=bom.system,
-                code=bom.code,
-                display=bom.display
-            )
-            code_bom = CodeableConcept(coding=[coding_bom])
+
+            code_bom = CodeableConcept(coding=[bom.to_coding()])
             code_med_bom = CodeableReference(concept=code_bom)
 
             medication_statement = MedicationStatement(
@@ -62,6 +61,11 @@ def build_before_onset_medicationStatement_profile(medications_list: list, patie
                 adherence=MedicationStatementAdherence(code=adherence_codeable),
                 meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/prior-medication-statement-profile"])
             )
+
+            if intracerebral_hemorrhage and bom in [Medications.RIVAROXABAN, Medications.DABIGATRAN, Medications.APIXABAN, Medications.EDOXABAN]: 
+                if prestroke_noac_timestamp is not None:
+                    medication_statement.effectiveDateTime = parse_datetime(prestroke_noac_timestamp)
+
             final_medication_lists.append(medication_statement)
     
     return final_medication_lists

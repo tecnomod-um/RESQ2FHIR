@@ -22,7 +22,7 @@ app:
 
     # IG package(s) bundled in the application classpath that the validator will load.
     # Place the .tgz under src/main/resources/ig/ and list here (comma-separated if multiple).
-    igClasspathPackages: "classpath:/ig/RESQ-IG-5.2.tgz"
+    igClasspathPackages: "classpath:/ig/RESQ-IG-5.2.8.tgz"
 
   # Settings used by the custom SnowstormClient (not HAPI’s remote terminology support).
   snowstorm:

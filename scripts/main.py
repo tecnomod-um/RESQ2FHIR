@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import shutil
 import time
@@ -13,6 +14,12 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from scripts.normalization.slovak import normalize_slovak_csv
 from scripts.normalization.sk_registry import normalize_sk_registry_csv
+from scripts.logging_config import setup_logging, get_logger, redirect_prints_to_logging
+
+# ============ Setup Logging ============
+setup_logging()
+redirect_prints_to_logging()
+logger = get_logger(__name__)
 
 # ============ Config por variables de entorno ============
 WORKDIR = Path(os.getenv("WORKDIR", "/app/workdir")).resolve()

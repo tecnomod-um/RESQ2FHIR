@@ -20,7 +20,7 @@ from scripts.enum_models import (
     AssessmentContext, CarotidEndarterectomyTiming, IchTreatment, ImagingDone, ImagingType, NoThrombectomyReason, NoThrombolysisReason, PostAcuteCare, PostNeurosurgeryImaging, PostRecanalizationImaging, PostStrokeProcedures, ProcedureNotDoneReason,SwallowingScreeningType,
     SwallowingScreeningTiming, PerforationProcedures, ThrombectomyComplications, VteProcedures
 )
-from scripts.utils import parse_datetime
+from scripts.utils import get_uuid, parse_datetime
 
 
 def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_report_ref: str, imaging_done: ImagingDone | None, imaging_type: ImagingType | None, post_acute_care: bool, imaging_timestamp: str | None) -> Procedure:
@@ -325,7 +325,7 @@ def build_thrombolysis_procedure(patient_ref: str, encounter_ref: str, condition
         return procedure
 
 
-def build_thrombectomy_procedure(thrombectomy: bool, post_acute_care: bool, patient_ref: str, encounter_ref: str, condition_ref: str, no_thrombectomy_reason_id : NoThrombectomyReason | None = None, reperfusion_timestamp = None, puncture_timestamp = None, mt_complications_perforation: bool = False, mt_complications_dissection: bool = False, mt_complications_hematoma: bool = False, mt_complications_embolism: bool = False, mt_complications_other: bool = False) -> Procedure:
+def build_thrombectomy_procedure(thrombectomy: bool, post_acute_care: bool, patient_ref: str, encounter_ref: str, condition_ref: str, no_thrombectomy_reason_id : NoThrombectomyReason | None = None, reperfusion_timestamp = None, puncture_timestamp = None, mt_complications_perforation: bool = False, mt_complications_dissection: bool = False, mt_complications_hematoma: bool = False, mt_complications_embolism: bool = False, mt_complications_other: bool = False, transfer_timestamp: str | None = None) -> Procedure:
     """
     Build a FHIR Procedure resource for thrombectomy.
     
@@ -343,7 +343,7 @@ def build_thrombectomy_procedure(thrombectomy: bool, post_acute_care: bool, pati
         patient_ref: Reference to the Patient resource
         encounter_ref: Reference to the Encounter resource
         condition_ref: Reference to the Condition resource
-        
+        transfer_timestamp: Timestamp of the transfer if was done elsewhere
     Returns:
         Procedure resource for thrombectomy
     """
@@ -355,13 +355,8 @@ def build_thrombectomy_procedure(thrombectomy: bool, post_acute_care: bool, pati
     )
     procedure.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-mechanical-procedure-profile"])
     
-    thrombectomy_procedure = PerforationProcedures.THROMBECTOMY
-    coding_thrombectomy = Coding(
-        code=thrombectomy_procedure.code,
-        system=thrombectomy_procedure.system,
-        display=thrombectomy_procedure.display
-    )
-    code_thrombectomy = CodeableConcept(coding=[coding_thrombectomy])
+    
+    code_thrombectomy = CodeableConcept(coding=[PerforationProcedures.THROMBECTOMY.to_coding()])
     procedure.code = code_thrombectomy
 
     extension_list = []
@@ -379,9 +374,13 @@ def build_thrombectomy_procedure(thrombectomy: bool, post_acute_care: bool, pati
             no_thrombectomy_reason_coding = ProcedureNotDoneReason.UNKNOWN.to_coding()
         else:
             no_thrombectomy_reason_coding = no_thrombectomy_reason_id.to_coding()
+            procedure.status = "not-done"
+            if no_thrombectomy_reason_coding == NoThrombectomyReason.TRANSFERRED_ELSEWHERE_IVT:
+                if transfer_timestamp is not None:
+                    procedure.occurrenceDateTime = parse_datetime(transfer_timestamp)
+                procedure.status = "on-hold"
 
         code_reason = CodeableConcept(coding=[no_thrombectomy_reason_coding])
-        procedure.status = "not-done"
         procedure.statusReason = code_reason
         return procedure
     
@@ -550,7 +549,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
     return procedure_list
 
 
-def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, condition_ref: str, ich_treatment_any: bool | None = False, ich_treatment_craniectomy: bool | None= False, ich_treatment_stereotactic_aspiration: bool | None = False, ich_treatment_ventricular_drainage: bool | None = False, ich_treatment_hematoma_evacuation: bool | None = False, ich_treatment_open_craniectomy: bool | None = False, ich_treatment_evacuation_timestamp: str | None = None, no_ich_treatment_reason: ProcedureNotDoneReason | None = None) -> list[Procedure]:
+def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, condition_ref: str, ich_treatment_any: bool | None = False, ich_treatment_craniectomy: bool | None= False, ich_treatment_stereotactic_aspiration: bool | None = False, ich_treatment_ventricular_drainage: bool | None = False, ich_treatment_hematoma_evacuation: bool | None = False, ich_treatment_open_craniectomy: bool | None = False, ich_treatment_evacuation_timestamp: str | None = None, no_ich_treatment_reason: ProcedureNotDoneReason | None = None) -> list[tuple[bool, Procedure]]:
     """
     Build a FHIR Procedure resources for ICH treatment.
     
@@ -618,12 +617,11 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
 
     if ich_treatment_any is False :
         for proc in [procedure_craniectomy, procedure_stereotactic_aspiration, procedure_ventricular_drainage, procedure_hematoma_evacuation, procedure_open_craniectomy]:
-            proc.status = "not-done"
             if no_ich_treatment_reason is not None:
                 proc.statusReason = CodeableConcept(coding=[no_ich_treatment_reason.to_coding()])
             else:
                 proc.statusReason = CodeableConcept(coding=[ProcedureNotDoneReason.UNKNOWN.to_coding()])
-        return [procedure_craniectomy, procedure_stereotactic_aspiration, procedure_ventricular_drainage, procedure_hematoma_evacuation, procedure_open_craniectomy]
+        return [(False, procedure_craniectomy), (False, procedure_stereotactic_aspiration), (False, procedure_ventricular_drainage), (False, procedure_hematoma_evacuation), (False, procedure_open_craniectomy)]
     
 
     if ich_treatment_craniectomy is True:
@@ -666,7 +664,7 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
 
 
     
-    return [procedure_craniectomy, procedure_stereotactic_aspiration, procedure_ventricular_drainage, procedure_hematoma_evacuation, procedure_open_craniectomy]
+    return [(False, procedure_craniectomy), (False, procedure_stereotactic_aspiration), (False, procedure_ventricular_drainage), (True, procedure_hematoma_evacuation), (False, procedure_open_craniectomy)]
 
 
 def build_sah_treatment_procedure(patient_ref: str, encounter_ref: str, condition_ref: str, sah_treatment_any: bool = False, sah_treatment_clipping: bool | None = False, sah_treatment_coiling: bool | None = False, sah_treatment_craniectomy: bool | None = False, sah_treatment_drainage: bool | None = False, sah_treatment_other: bool | None = False) -> list[Procedure]:

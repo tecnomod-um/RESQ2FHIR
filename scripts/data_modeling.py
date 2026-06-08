@@ -3,13 +3,14 @@ Main module for FHIR transformation.
 Orchestrates the construction of FHIR resources from raw stroke data.
 """
 
-from fhir.resources.bundle import Bundle, BundleEntryRequest
+import logging
 
 from fhir.resources.bundle import Bundle, BundleEntry, BundleEntryRequest
-from scripts.enum_models import AdmissionDepartment, AdmissionPathway, AssessmentContext, AtrialFibrillationOrFlutter, BleedingReason, CarotidStenosisLevel, DischargeDestination, DischargeFacilityDepartment, FirstContactPlace, GCSScore, HospitalizedIn, ImagingDone, ImagingType, InsulinOnHyperglycemiaTiming, Locations, MRsScore, MTiciScore, ManagementAppointment, Medications, MimicsDiagnosis, NoThrombectomyReason, NoThrombolysisReason, NotMedicationReason, ParacetamolOnFeverTiming, ParacetamolOnFeverTiming, PostAcuteCare, PostNeurosurgeryImaging, PostRecanalizationImaging, ProcedureNotDoneReason, ScreeningPerformer, Sex, StrokeEtiology, StrokeType, SwallowingScreeningDone, SwallowingScreeningTiming, SwallowingScreeningType, ThreeMonthContactMode
+from scripts.enum_models import AdmissionDepartment, AdmissionPathway, AssessmentContext, AtrialFibrillationOrFlutter, BleedingReason, CarotidStenosisLevel, DischargeDestination, DischargeFacilityDepartment, FirstContactPlace, GCSScore, HospitalizedIn, ImagingDone, ImagingType, InsulinOnHyperglycemiaTiming, IvtApplicationDepartment, IvtDrug, Locations, MRsScore, MTiciScore, ManagementAppointment, Medications, MimicsDiagnosis, NoAnticoagulantReason, NoThrombectomyReason, NoThrombolysisReason, ParacetamolOnFeverTiming, ParacetamolOnFeverTiming, PostAcuteCare, PostNeurosurgeryImaging, PostRecanalizationImaging, ProcedureNotDoneReason, ScreeningPerformer, Sex, StrokeEtiology, StrokeType, SwallowingScreeningDone, SwallowingScreeningTiming, SwallowingScreeningType, TenecteplaseBrand, ThreeMonthContactMode
 from scripts.fhir_resources.bodyStructure import build_bodyStructure
 from scripts.fhir_resources.diagnosticReport import build_carotid_arteries_imaging_diagnostic_report, build_ct_mr_after_ivt_diagnostic_report, build_imaging_diagnostic_report, build_mechanical_thrombectomy_diagnostic_report
 from scripts.fhir_resources.location import build_hospitalized_location, build_location
+from scripts.fhir_resources.medication import build_tenecteplase_brand_medication
 from scripts.fhir_resources.medicationAdministration import build_insulin_on_hyperglycemia, build_medicationAdministration, build_medicationAdministration_nimopidine, build_medicationAdministration_paracetamol_on_fever
 from scripts.fhir_resources.organization import build_organization
 from scripts.fhir_resources.patient import build_Patient
@@ -20,9 +21,12 @@ from scripts.fhir_resources.practitionerRole import build_practitioner
 from scripts.fhir_resources.procedure import build_carotid_imaging_procedure, build_craniectomy_procedure, build_cvt_treatment_procedure, build_endarterectomy_procedure, build_ich_treatment_procedure, build_imaging_procedure, build_occupational_therapy_procedure, build_physioterapy_procedure, build_post_neurosurgery_imaging_procedure, build_post_recanalization_imaging_procedure, build_sah_treatment_procedure, build_speech_therapy_procedure, build_thrombolysis_procedure, build_thrombectomy_procedure, build_swallowing_screening_procedure, build_vte_procedure
 from scripts.fhir_resources.medicationStatement import build_before_onset_medicationStatement_profile
 from scripts.fhir_resources.medicationRequest import build_on_discharge_medicationRequest_profile
-from scripts.helpers import get_before_onset_medications, get_occlusions_list, get_on_discharge_medications, get_risk_factors
+from scripts.helpers import get_before_onset_medications, get_bleeding_reason, get_occlusions_list, get_on_discharge_medications, get_risk_factors
 from scripts.helpers import get_risk_factors
 from scripts.utils import get_uuid, safe_get, safe_get_bool, ensure_dependency
+
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -58,10 +62,15 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
     medicationAdministration_reversal_ref = None
     observation_vital_signs_ref = ""
     procedure_imaging_ref = ""
-    procedure_ich_treatment_ref = ""
+    ich_treatment_hematoma_ref = None
     medicationAdministration_iv_antihypertensive_ref = ""
     transferred_from_hosp_loc_ref = get_uuid()
     organization_ref = get_uuid()
+    stroke_type = safe_get(raw, "stroke_type", required=False) # Check if stroke_type is present in raw data, not required
+    stroke_type_enum = StrokeType.by_id(stroke_type) # Convert stroke type from raw data to StrokeType enum, field not required
+    logger.info("Stroke type: %s", safe_get(raw, "stroke_type", required=False))
+    logger.info("Raw data: %s", raw)
+
 ########################## 0. Admission Data ##########################
 
     ########################## 0.1. Organization ##########################
@@ -103,6 +112,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
         entries.append(BundleEntry(fullUrl=transferred_from_hosp_loc_ref, resource=transferred_from_hosp_loc, request=BundleEntryRequest(method="POST", url="Organization")))
 
 
+    logger.info("Hospitalized in: %s, Admission department: %s", hospitalized_in, admission_department)
     hospital_timestamp = safe_get(raw, "hospital_timestamp", required=False)
     encounter = build_stroke_encounter_profile(patient_ref=patient_ref, # Build Encounter resource using patient_ref and other relevant data from raw
                                                 arrival_mode=AdmissionPathway.by_id(safe_get(raw, "arrival_mode_id", required=False)), # Obtain arrival mode from raw data and convert to ArrivalMode enum, field not required
@@ -115,15 +125,17 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                 inhospital_stroke=safe_get_bool(raw, "inhospital_stroke", required=False, default=False), # Obtain inhospital stroke boolean from raw data, field not required, default to False
                                                 hospital_timestamp=hospital_timestamp, # Obtain hospital timestamp from raw data, field not required
                                                 discharge_date=safe_get(raw, "discharge_date", required=False), # Obtain discharge date from raw data, field not required
-                                                first_hospital=safe_get_bool(raw, "first_hospital", required=False, default=False), # Obtain first hospital boolean from raw data, field not required, default to False
+                                                #first_hospital=safe_get_bool(raw, "first_hospital", required=False, default=False), # Obtain first hospital boolean from raw data, field not required, default to False
                                                 post_acute_care=safe_get_bool(raw, "post_acute_care", required=False, default=False), # Obtain post-acute care boolean from raw data, field not required, default to False
                                                 ems_prenotification=safe_get_bool(raw, "ems_prenotification", required=False, default=False),
-                                                first_hospital_ref=first_hospital_ref) # Obtain EMS prenotification boolean from raw data, field not required, default to False
+                                                first_hospital_ref=first_hospital_ref,
+                                                transfer_timestamp=safe_get(raw, "transfer_timestamp", required=False)) # Obtain EMS prenotification boolean from raw data, field not required, default to False
     
     entries.append(BundleEntry(fullUrl=encounter_ref, resource=encounter, request=BundleEntryRequest(method="POST", url="Encounter")))
 
 ########################### End Admission Data Form ########################################################################
-
+    intracerebral_hemorrhage = stroke_type_enum == StrokeType.INTRACEREBRAL_HEMORRHAGE
+    prestroke_noac_timestamp = safe_get(raw, "prestroke_noac_timestamp", required=False)
 ############################# 1. Baseline Data ##########################################
     ################## 1.1. Risk factor Conditions #######################
     risk_factor_active, risk_factor_inactive, risk_factor_unknown, risk_factor_remission = get_risk_factors(raw) ## Obtain risk factors grouped by clinical status using helper function, passing raw data
@@ -144,7 +156,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
         ("Unknown", med_unknown)
     ]
     
-    for med_statement in build_before_onset_medicationStatement_profile(med_grouped, patient_ref, encounter_ref):
+    for med_statement in build_before_onset_medicationStatement_profile(med_grouped, patient_ref, encounter_ref, intracerebral_hemorrhage, prestroke_noac_timestamp):
         entries.append(BundleEntry(fullUrl=get_uuid(), resource=med_statement, request=BundleEntryRequest(method="POST", url="MedicationStatement")))
 
     #################### 1.3. Glucose observation ########################
@@ -283,12 +295,15 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
     thrombolysis_procedure_ref = None
     thrombectomy_procedure_ref = None
     stroke_type = safe_get(raw, "stroke_type", required=False) # Check if stroke_type is present in raw data, not required
+    logger.info("Stroke type obtained: %s", stroke_type)
     if stroke_type is not None:
+        stroke_type_enum = StrokeType.by_id(stroke_type) # Convert stroke type from raw data to StrokeType enum, field not required
         ############################ 2.2.1 Clinical symptoms of TIA (Observation) ######################################
         obs_clinical_symptoms_ref_id = None
-        if stroke_type == StrokeType.TRANSIENT_ISCHEMIC:
+        if stroke_type_enum == StrokeType.TRANSIENT_ISCHEMIC:
             tia_symptoms = safe_get(raw, "tia_symptoms", required=False) # If stroke type is TIA, check if tia_symptoms is present in raw data, required if stroke_type is TIA
             if tia_symptoms is not None:
+                logger.info("TIA symptoms obtained: %s", tia_symptoms)
                 obs_clinical_symptoms_ref = build_tia_clinical_symptomps_observation(patient_ref=patient_ref, # Build Observation resource for TIA clinical symptoms using patient_ref, encounter_ref and tia_symptoms from raw data, field not required
                                                                                 encounter_ref=encounter_ref,
                                                                                 tia_symptom=tia_symptoms,
@@ -296,13 +311,14 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
             
                 obs_clinical_symptoms_ref_id = get_uuid()
                 entries.append(BundleEntry(fullUrl=obs_clinical_symptoms_ref_id, resource=obs_clinical_symptoms_ref, request=BundleEntryRequest(method="POST", url="Observation"))  )
+        bleeding_reason_list = get_bleeding_reason(raw) # Obtain bleeding reasons list from raw data using helper function, passing raw data
         condition_stroke_ref = get_uuid()
         condition_stroke = build_stroke_diagnosis_condition_profile(patient_ref = patient_ref, # Build Condition resource for stroke diagnosis using patient_ref and other relevant data from raw
                                                                     encounter_ref = encounter_ref,
                                                                     stroke_type = StrokeType.by_id(safe_get(raw, "stroke_type", required=False)), # Obtain stroke type from raw data and convert to ConceptEnum, field not required
                                                                     stroke_type_mimics=MimicsDiagnosis.by_id(safe_get(raw, "stroke_mimics_diagnosis", required=False)), # Obtain stroke type mimics from raw data and convert to ConceptEnum, field not required
                                                                     stroke_etiology=StrokeEtiology.by_id(safe_get(raw, "stroke_etiology", required=False)), # Obtain stroke etiology from raw data and convert to ConceptEnum, field not required
-                                                                    bleeding_reason=BleedingReason.by_id(safe_get(raw, "bleeding_reason", required=False)), # Obtain bleeding reason from raw data and convert to ConceptEnum, field not required
+                                                                    bleeding_reasons=bleeding_reason_list, # Use the obtained bleeding reasons list
                                                                     bleeding_reason_found=safe_get_bool(raw, "bleeding_reason_found", required=False), # Obtain bleeding reason found from raw data and convert to ConceptEnum, field not required
                                                                     stroke_etiology_known=safe_get_bool(raw, "stroke_etiology_known", required=False, default=False), # Obtain stroke etiology known boolean from raw data, field not required, default to False
                                                                     ich_infratentorial=safe_get_bool(raw, "ich_infratentorial", required=False, default=False), # Obtain intracerebral hemorrhage infratentorial boolean from raw data, field not required, default to False
@@ -317,8 +333,8 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
         entries.append(BundleEntry(fullUrl=condition_stroke_ref, resource=condition_stroke, request=BundleEntryRequest(method="POST", url="Condition")))
         ########################### 2.2.2 Ischemic stroke type (Condition) ######################################
 
-        if stroke_type == StrokeType.ISCHEMIC:
-            
+        if stroke_type_enum == StrokeType.ISCHEMIC:
+            logger.info("Stroke type Ischemic")    
             ensure_dependency(condition_stroke_ref is not None,
                               need="Stroke Condition",
                               because="Stroke Type=Ischemic requires a Condition to reference")
@@ -336,29 +352,46 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
             thrombolysis_done = safe_get_bool(raw, "thrombolysis", required=False) # Check if thrombolysis done boolean is present in raw data, not required
             thrombolysis_location_ref = None
             bolus_timestamp = None
+            no_thrombolysis_reason_id = None
+            procedure_thrombolysis_ref = get_uuid()
 
             if thrombolysis_done is True:
-                procedure_thrombolysis_ref = get_uuid()
+                logger.info("Thrombolysis done: %s", thrombolysis_done)
                 bolus_timestamp = safe_get(raw, "bolus_timestamp", required=False) # Check if bolus timestamp is present in raw data, not required
                 thrombolysis_location_value = safe_get(raw, "ivt_application_department", required=False) # Check if thrombolysis location is present in raw data, not required
                 thrombolysis_location_ref = get_uuid()
 
                 if thrombolysis_location_value is not None:
-                    thrombolysis_location = build_location(Locations.by_id(thrombolysis_location_value)) # Build Location resource for thrombolysis location
+                    logger.info("Thrombolysis location: %s", thrombolysis_location_value)
+                    thrombolysis_location = build_location(IvtApplicationDepartment.by_id(thrombolysis_location_value)) # Build Location resource for thrombolysis location
                     entries.append(BundleEntry(fullUrl=thrombolysis_location_ref, resource=thrombolysis_location, request=BundleEntryRequest(method="POST", url="Location")))
                 
                 medication_thrombolysis = safe_get(raw, "ivt_drug", required=False) # Check if thrombolysis medication is present in raw data, not required
                 ivt_drug_dose = safe_get(raw, "ivt_drug_dose", required=False) # Check if thrombolysis medication dose is present in raw data, not required
-
+                
         ############################ 2.2.2.3 Thombolysis administration (MedicationAdministration) ######################################
                 
                 if medication_thrombolysis is not None and ivt_drug_dose is not None:
+                    logger.info("Thrombolysis medication: %s, dose: %s", medication_thrombolysis, ivt_drug_dose)
+                    medication_thrombolysis = IvtDrug.by_id(medication_thrombolysis) # Obtain thrombolysis medication from raw data and convert to IvtDrug enum, field not required
+                    if medication_thrombolysis == IvtDrug.TENECTEPLASE: 
+                        tenecteplase_brand = safe_get(raw, "tenecteplase_brand", required=False) # If thrombolysis medication is Tenecteplase, check if Tenecteplase brand is present in raw data, not required
+                        logger.info("Tenecteplase brand: %s", tenecteplase_brand)
+                        if tenecteplase_brand is not None:
+                            medication_thrombolysis_resource = build_tenecteplase_brand_medication(TenecteplaseBrand.by_id(tenecteplase_brand))
+                            medication_thrombolysis_ref = get_uuid()
+                            medication_thrombolysis_med = medication_thrombolysis_ref
+                            entries.append(BundleEntry(fullUrl=medication_thrombolysis_ref, resource=medication_thrombolysis_resource, request=BundleEntryRequest(method="POST", url="Medication")))
+                    
+                    else:
+                         medication_thrombolysis_med = IvtDrug.by_id(medication_thrombolysis) # Obtain thrombolysis medication from raw data and convert to IvtDrug enum, field not required
+                    
                     medicationAdministration_thrombolysis_ref = get_uuid()
                     medicationAdministration_thrombolysis = build_medicationAdministration(patient_ref=patient_ref,
                                                                                 encounter_ref=encounter_ref,
                                                                                 condition_ref=condition_stroke_ref,
                                                                                 procedure_ref=procedure_thrombolysis_ref,
-                                                                                medication= Medications.by_id(medication_thrombolysis), # Obtain thrombolysis medication from raw data and convert to Medications enum, field not required
+                                                                                medication= medication_thrombolysis_med, # Obtain thrombolysis medication from raw data and convert to Medications enum, field not required
                                                                                 medication_timestamp=bolus_timestamp,
                                                                                 dose = int(ivt_drug_dose))    # Convert dose to integer and pass to build_medicationAdministration
                     entries.append(BundleEntry(fullUrl=medicationAdministration_thrombolysis_ref, resource=medicationAdministration_thrombolysis, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
@@ -390,11 +423,13 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                     post_acute_care=False,
                                                                     no_thrombolysis_reason_id=NoThrombolysisReason.by_id(no_thrombolysis_reason_id) if no_thrombolysis_reason_id else None,
                                                                     bolus_timestamp=bolus_timestamp) # Build Procedure resource for thrombolysis using patient_ref, encounter_ref and stroke diagnosis reference, field not required         
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_thrombolysis, request=BundleEntryRequest(method="POST", url="Procedure")))
+            entries.append(BundleEntry(fullUrl=procedure_thrombolysis_ref, resource=procedure_thrombolysis, request=BundleEntryRequest(method="POST", url="Procedure")))
         
         ######################## 2.2.2.5 Mechanical thrombectomy (Procedure) ######################################
 
         thrombectomy_done = safe_get_bool(raw, "thrombectomy", required=False) # Check if mechanical thrombectomy done boolean is present in raw data, not required
+        thrombectomy_procedure_ref = get_uuid()
+
         if thrombectomy_done is not None and thrombectomy_done is False:
             no_thrombectomy_reason_id = safe_get(raw, "no_thrombectomy_reason", required=False) # Check if no mechanical thrombectomy reason is present in raw data, not required
             procedure_thrombectomy = build_thrombectomy_procedure(patient_ref=patient_ref,
@@ -402,12 +437,11 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                 condition_ref=condition_stroke_ref,
                                                                 thrombectomy=thrombectomy_done,
                                                                 post_acute_care=False,
-                                                                no_thrombectomy_reason_id=NoThrombectomyReason.by_id(no_thrombectomy_reason_id)) # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_thrombectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
+                                                                no_thrombectomy_reason_id=NoThrombectomyReason.by_id(no_thrombectomy_reason_id),
+                                                                transfer_timestamp=safe_get(raw, "transfer_timestamp", required=False)) # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
+            entries.append(BundleEntry(fullUrl=thrombectomy_procedure_ref, resource=procedure_thrombectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
         elif thrombectomy_done is not None and thrombectomy_done is True:
-            thrombectomy_procedure_ref = get_uuid()
             groin_puncture_timestamp = safe_get(raw, "puncture_timestamp", required=False) # Check if groin puncture timestamp is present in raw data, not required
-            
             mtici_score = safe_get(raw, "mtici_score", required=False) # Check if mTICI score is present in raw data, not required
             if mtici_score is not None:
                 observation_mtici = build_observation_mtici_score(patient_ref=patient_ref,
@@ -428,7 +462,8 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                 mt_complications_hematoma=safe_get_bool(raw,"mt_complications_hematoma", required=False), # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
                                                                 mt_complications_other=safe_get_bool(raw,"mt_complications_other", required=False), # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
                                                                 mt_complications_perforation=safe_get_bool(raw,"mt_complications_perforation", required=False), # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-                                                                post_acute_care=False) # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
+                                                                post_acute_care=False, # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
+                                                                transfer_timestamp=None) # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
             entries.append(BundleEntry(fullUrl=thrombectomy_procedure_ref, resource=procedure_thrombectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
 
             diagnostic_report_thrombectomy = build_mechanical_thrombectomy_diagnostic_report(patient_ref=patient_ref,
@@ -471,7 +506,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
         
         ############################ 2.2.3 Intracerebral hemorrhage (Condition) ######################################
 
-        if stroke_type == StrokeType.INTRACEREBRAL_HEMORRHAGE:
+        if stroke_type_enum == StrokeType.INTRACEREBRAL_HEMORRHAGE:
             bleeding_volume = safe_get(raw, "bleeding_volume", required=False) # Check if intracerebral hemorrhage volume is present in raw data, required if stroke type is intracerebral hemorrhage
             if bleeding_volume is not None:
                 observation_bleeding_volume = build_observation_blood_volume(patient_ref=patient_ref, 
@@ -502,7 +537,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                                 procedure_ref=None, # No procedure reference for anticoagulant reversal in intracerebral hemorrhage, can be extended to reference a specific procedure if needed
                                                                                 medication= Medications.ANTICOAGULANT_REVERSAL, # Use a specific medication for thrombolysis reversal, can be extended to use different medications if needed
                                                                                 dose = None, # Dose is not applicable for reversal medication, pass None
-                                                                                no_medication_reason=NotMedicationReason.by_id(no_anticoagulant_reversal_reason)) # Pass no anticoagulant reversal reason to build_medicationAdministration
+                                                                                no_medication_reason=NoAnticoagulantReason.by_id(no_anticoagulant_reversal_reason)) # Pass no anticoagulant reversal reason to build_medicationAdministration
 
                         entries.append(BundleEntry(fullUrl=get_uuid(), resource=medicationAdministration_anticoagulant_reversal_no_reason, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
 
@@ -523,10 +558,14 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                         ich_treatment_ventricular_drainage=safe_get_bool(raw, "ich_treatment_ventricular_drainage", required=False),
                                                                         ich_treatment_evacuation_timestamp=ich_treatment_evacuation_timestamp,
                                                                         no_ich_treatment_reason= ProcedureNotDoneReason.by_id(safe_get(raw, "no_ich_treatment_reason", required=False))) # Build Procedure resource for intracerebral hemorrhage treatment using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-                for proc in procedure_ich_treatment:
-                    entries.append(BundleEntry(fullUrl=procedure_ich_treatment_ref, resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
+                    for done,proc in procedure_ich_treatment:
+                        if done is True and safe_get_bool(raw, "ich_treatment_hematoma_evacuation", required=False):
+                            ich_treatment_hematoma_ref = get_uuid()
+                            entries.append(BundleEntry(fullUrl=ich_treatment_hematoma_ref, resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
+                        else:
+                            entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
         ########################### 2.2.4 Subarachnoid hemorrhage (Condition) ######################################
-        if stroke_type == StrokeType.SUBARACHNOID_HEMORRHAGE:
+        if stroke_type_enum == StrokeType.SUBARACHNOID_HEMORRHAGE:
             hunt_hess_score = safe_get(raw, "hunt_hess_score", required=False) # Check if Hunt and Hess score is present in raw data, required if stroke type is subarachnoid hemorrhage
             
             if hunt_hess_score is not None:
@@ -547,6 +586,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                         sah_treatment_drainage=safe_get_bool(raw, "sah_treatment_drainage", required=False),
                                                                         sah_treatment_other=safe_get_bool(raw, "sah_treatment_other", required=False)) # Build Procedure resource for subarachnoid hemorrhage treatment using patient_ref, encounter_ref and stroke diagnosis reference, field not required
                 for proc in procedure_sah_treatment:
+                    
                     entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
 
             nimodipine_administration = safe_get_bool(raw, "nimodipine", required= True) # Check if nimodipine administration is present in raw data, not required
@@ -560,7 +600,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                                                                                 reference_time=str(hospital_timestamp)) # Pass nimodipine administration timestamp to build_medicationAdministration
                 entries.append(BundleEntry(fullUrl=get_uuid(), resource=medicationAdministration_nimodipine, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
         ############################ 2.2.5 Cerebral venous thrombosis (Condition) ######################################
-        if stroke_type == StrokeType.CEREBRAL_VENOUS_THROMBOSIS:
+        if stroke_type_enum == StrokeType.CEREBRAL_VENOUS_THROMBOSIS:
             cvt_treatment_any = safe_get_bool(raw, "cvt_treatment_any", required=False) # Check if any treatment for cerebral venous thrombosis was given, not required
             if cvt_treatment_any:
                 procedure_cvt_treatment = build_cvt_treatment_procedure(patient_ref=patient_ref,
@@ -576,7 +616,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
                     entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
 
         ############################# 2.2.6 Stroke Mimics (Condition) ######################################
-        if stroke_type == StrokeType.STROKE_MIMICS:
+        if stroke_type_enum == StrokeType.STROKE_MIMICS:
         ########################### 2.2.6.1 Thrombolysis (Procedure) ######################################
             thrombolysis_done = safe_get_bool(raw, "thrombolysis", required=False) # Check if thrombolysis done boolean is present in raw data, not required
             thrombolysis_location_ref = None
@@ -584,13 +624,11 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
             no_thrombolysis_reason_id = None
 
             if thrombolysis_done is True:
-                procedure_thrombolysis_ref = get_uuid()
                 bolus_timestamp = safe_get(raw, "bolus_timestamp", required=False) # Check if bolus timestamp is present in raw data, not required
                 thrombolysis_location_value = safe_get(raw, "ivt_application_department", required=False) # Check if thrombolysis location is present in raw data, not required
-                thrombolysis_location_ref = get_uuid()
 
                 if thrombolysis_location_value is not None:
-                    thrombolysis_location = build_location(Locations.by_id(thrombolysis_location_value)) # Build Location resource for thrombolysis location
+                    thrombolysis_location = build_location(IvtApplicationDepartment.by_id(thrombolysis_location_value)) # Build Location resource for thrombolysis location
                     entries.append(BundleEntry(fullUrl=thrombolysis_location_ref, resource=thrombolysis_location, request=BundleEntryRequest(method="POST", url="Location")))
 
                 medication_thrombolysis = safe_get(raw, "ivt_drug", required=False) # Check if thrombolysis medication is present in raw data, not required
@@ -951,7 +989,7 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
             if no_anticoagulant_reason is not None:
                 observation_no_anticoagulant = build_no_anticoagulant_discharge_medication(patient_ref=patient_ref,
                                                                                         encounter_ref=encounter_ref,
-                                                                                        no_anticoagulant_discharge_reason=NotMedicationReason.by_id(no_anticoagulant_reason),
+                                                                                        no_anticoagulant_discharge_reason=NoAnticoagulantReason.by_id(no_anticoagulant_reason),
                                                                                         ) # Build Observation resource for no anticoagulant prescribed at discharge using patient_ref, encounter_ref and boolean for any medication at discharge from raw data, field not required
                 entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_no_anticoagulant, request=BundleEntryRequest(method="POST", url="Observation")))
     ################################## 4.3 Follow-up appointment (Appointment) ######################################
@@ -1103,12 +1141,12 @@ def transform_to_fhir(file_id: str, raw: dict) -> Bundle:
             entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_g2r, request=BundleEntryRequest(method="POST", url="Observation")))
 
 
-    if procedure_ich_treatment_ref is not None:
+    if ich_treatment_hematoma_ref is not None:
         door_to_ich_evacuation = safe_get(raw, "door_to_ich_evacuation", required=False)
-        if door_to_ich_evacuation is not None and procedure_ich_treatment_ref:
+        if door_to_ich_evacuation is not None and ich_treatment_hematoma_ref:
             observation_d2e = build_timing_door_to_ich_evacuation_observation(patient_ref=patient_ref,
                                                                     encounter_ref=encounter_ref,
-                                                                    procedure_ref = procedure_ich_treatment_ref,
+                                                                    procedure_ref = ich_treatment_hematoma_ref,
                                                                     door_to_ich_evacuation_time=door_to_ich_evacuation)
             entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_d2e, request=BundleEntryRequest(method="POST", url="Observation")))
 

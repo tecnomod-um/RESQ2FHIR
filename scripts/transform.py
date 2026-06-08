@@ -36,6 +36,7 @@ try:
 except ModuleNotFoundError:
     from data_modeling import transform_to_fhir
     from utils import TransformError
+from scripts.logging_config import redirect_prints_to_logging
 
 
 logger = logging.getLogger(__name__)
@@ -44,10 +45,16 @@ logger = logging.getLogger(__name__)
 def setup_logging(verbose: bool = False):
     """Configure logging."""
     level = logging.DEBUG if verbose else logging.INFO
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     logging.basicConfig(
         level=level,
+        stream=sys.stdout,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
+    redirect_prints_to_logging()
 
 
 def load_csv(csv_path: Path) -> pd.DataFrame:

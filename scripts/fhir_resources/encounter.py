@@ -28,6 +28,7 @@ def build_stroke_encounter_profile(
     discharge_date: str | None = None,
     post_acute_care: bool = False,
     ems_prenotification: bool = False,
+    transfer_timestamp: str | None = None,
     first_hospital_ref: str | None = None,
 ) -> Encounter:    
     """
@@ -50,6 +51,7 @@ def build_stroke_encounter_profile(
         ems_prenotification: Boolean indicating if EMS prenotification was done for the patient before arrival at the hospital
         transferred_from_hospital_ref: Reference to the hospital from which the patient was transferred
         discharged_hospital_ref: Reference to the hospital where the patient was discharged
+        transfer_timestamp: Timestamp of the transfer if the patient was transferred to another for doing thrombectomy
     Returns:
         Encounter resource for stroke care 
     """
@@ -139,6 +141,10 @@ def build_stroke_encounter_profile(
 
     if discharge_date is not None:
         encounterPeriod.end = parse_datetime(discharge_date)
+    if transfer_timestamp is not None and post_acute_care is False:
+        encounterPeriod.end = parse_datetime(transfer_timestamp)
+
+    encounter.actualPeriod = encounterPeriod
 
 
     return encounter

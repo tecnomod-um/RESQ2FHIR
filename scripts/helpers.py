@@ -137,10 +137,13 @@ def get_bleeding_reason(raw: dict):
         "bleeding_reason_avm": BleedingReason.AVM,
         "bleeding_reason_angiopathy": BleedingReason.ANGIOPATHY
     }
+
+    reason_list = []
     for key, reason in mapping.items():
         if raw.get(key) is True:
-            return reason
-    return None
+            reason_list.append(reason)
+    return reason_list
+
 
 
 def get_risk_factors(raw: dict):

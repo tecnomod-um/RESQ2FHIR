@@ -13,7 +13,7 @@ from scripts.enum_models import BleedingReason, BodySites, MimicsDiagnosis, Post
 from scripts.utils import parse_datetime
 
 
-def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: str, stroke_type: StrokeType | None, stroke_type_mimics: MimicsDiagnosis | None, stroke_etiology_known: bool, stroke_etiology: StrokeEtiology | None , bleeding_reason_found: bool, bleeding_reason: BleedingReason | None, wakeup_stroke: bool, sleep_timestamp: str | None, onset_timestamp: str | None, obs_symptoms_tia_ref: str | None, ich_infratentorial: bool, ich_supratentorial: bool, intraventricular_hemorrhage: bool, subarachnoid_hemorrhage: bool) -> Condition:
+def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: str, stroke_type: StrokeType | None, stroke_type_mimics: MimicsDiagnosis | None, stroke_etiology_known: bool, stroke_etiology: StrokeEtiology | None , bleeding_reason_found: bool, bleeding_reasons: list[BleedingReason], wakeup_stroke: bool, sleep_timestamp: str | None, onset_timestamp: str | None, obs_symptoms_tia_ref: str | None, ich_infratentorial: bool, ich_supratentorial: bool, intraventricular_hemorrhage: bool, subarachnoid_hemorrhage: bool) -> Condition:
     """
     Build a FHIR Condition resource for stroke diagnosis.
     
@@ -25,7 +25,7 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
         stroke_etiology_known: Boolean indicating if stroke etiology is known
         stroke_etiology: ConceptEnum representing the etiology of ischemic stroke (if known)
         bleeding_reason_found: Boolean indicating if bleeding reason for hemorrhagic stroke is found
-        bleeding_reason: ConceptEnum representing the bleeding reason for hemorrhagic stroke (if found)
+        bleeding_reasons: List of ConceptEnums representing the bleeding reasons for hemorrhagic stroke (if found)
         wakeup_stroke: Boolean indicating if it's a wake-up stroke
         sleep_timestamp: Timestamp of when the patient went to sleep (for wake-up strokes)
         onset_timestamp: Timestamp of symptom onset (for non-wake-up strokes)
@@ -71,18 +71,12 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
         display="Active"
     )])
 
-    if stroke_type == StrokeType.UNDETERMINED:
-        condition.verificationStatus = CodeableConcept(coding=[Coding(
-            system="http://terminology.hl7.org/CodeSystem/condition-ver-status",
-            code="unknown",
-            display="Unknown"
-        )])
-    else:
+    if stroke_type != StrokeType.UNDETERMINED:
         condition.verificationStatus = CodeableConcept(coding=[Coding(
             system="http://terminology.hl7.org/CodeSystem/condition-ver-status",
             code="confirmed",
             display="Confirmed"
-        )])
+        )]) 
 
     # Profile + optional extensions
     condition.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-diagnosis-condition-profile"])
@@ -106,11 +100,12 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
         ))
     
     if bleeding_reason_found is True:
-        if bleeding_reason is not None:
-            extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
-                valueCodeableConcept=CodeableConcept(coding=[bleeding_reason.to_coding()])
-            ))
+        if bleeding_reasons:
+            for bleeding_reason in bleeding_reasons:
+                extension_list.append(Extension(
+                    url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
+                    valueCodeableConcept=CodeableConcept(coding=[bleeding_reason.to_coding()])
+                ))
         else:
             extension_list.append(Extension(
                 url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-found-ext",

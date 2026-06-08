@@ -175,10 +175,10 @@ class IvtApplicationDepartment(ConceptEnum):
     OTHER = ("4", {"code": "other", "display": "Other Department", "system": "http://tecnomod-um.org/CodeSystem/location-cs"})    
 
 class IvtDrug(ConceptEnum):
-    ALTEPLASE = ("Alteplase", {"code": "387152000", "display": "Alteplase (substance)", "system": "http://snomed.info/sct"})
-    TENECTEPLASE = ("Tenecteplase", {"code": "387066007", "display": "Tenecteplase (substance)", "system": "http://snomed.info/sct"})
-    STREPTOKINASE = ("Streptokinase", {"code": "395889004", "display": "Streptokinase (substance)", "system": "http://snomed.info/sct"})
-    STAPHYLOKINASE = ("Staphylokinase", {"code": "staphylokinase", "display": "Staphylokinase", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
+    ALTEPLASE = ("1", {"code": "387152000", "display": "Alteplase (substance)", "system": "http://snomed.info/sct"})
+    TENECTEPLASE = ("2", {"code": "387066007", "display": "Tenecteplase (substance)", "system": "http://snomed.info/sct"})
+    STREPTOKINASE = ("3", {"code": "395889004", "display": "Streptokinase (substance)", "system": "http://snomed.info/sct"})
+    STAPHYLOKINASE = ("4", {"code": "staphylokinase", "display": "Staphylokinase", "system": "http://tecnomod-um.org/CodeSystem/medication-cs"})
 
 class Locations(ConceptEnum):
     EMERGENCY= ("emergency", {"code": "ER", "display": "Emergency room", "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"})
@@ -288,7 +288,7 @@ class BleedingReason(ConceptEnum):
 
 class AtrialFibrillationOrFlutter(ConceptEnum):
     KNOWN_AF = ("1", {"code": "410515003", "display": "Known present (qualifier value)", "system": "http://snomed.info/sct"})
-    DETECTED = ("2", {"code": "410515003", "display": "Known present (qualifier value)", "system": "http://snomed.info/sct"})
+    DETECTED = ("2", {"code": "260373001", "display": "Detected (qualifier value)", "system": "http://snomed.info/sct"})
     NO_AF = ("3", {"code": "410516002", "display": "Known absent (qualifier value)", "system": "http://snomed.info/sct"})
     NOT_SCREENED = ("4", {"code": "261665006", "display": "Unknown (qualifier value)", "system": "http://snomed.info/sct"})
 
@@ -309,6 +309,17 @@ class ObservationMethods(ConceptEnum):
     POINTOFCARE=("Point of Care", {"code": "405262001", "display": "Point of care (qualifier value)", "system": "http://snomed.info/sct"})
     VENTILATED = ("Ventilated", {"code": "40617009", "display": "Artificial ventilation (regime/therapy)", "system": "http://snomed.info/sct"})
     NO_ANTICOAGULATION = ("No Anticoagulation", {"code": "413560001", "display": "Anticoagulation not indicated (situation)", "system": "http://snomed.info/sct"})
+
+class TenecteplaseBrand(ConceptEnum):
+    METALYSE = ("1", {"code": "metalyse", "display": "Metalyse (Boehringer Ingelheim International)", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
+    TENECTASE = ("2", {"code": "tenectase", "display": "Tenectase (Gennova Biopharmaceuticals)", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
+    TNKASE = ("3", {"code": "tnkase", "display": "TNKase (Genentech/Roche)", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
+    SUPRAPLASE = ("4", {"code": "supralase", "display": "Supraplase (Cadila Pharmaceuticals)", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
+    VELIX = ("5", {"code": "velix", "display": "Velix (Emcure Pharmaceuticals)", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
+    TENECTELEX = ("6", {"code": "tenectelex", "display": "Tenectelex (Abbott Healthcare)", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
+    TELYSE = ("7", {"code": "telyse", "display": "Telyse (Cipla)", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
+    TENEPACT = ("8", {"code": "tenepact", "display": "Tenepact (Glenmark Pharmaceuticals)", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
+    OTHER = ("9", {"code": "other", "display": "Other", "system": "http://tecnomod-um.org/CodeSystem/tenecteplase-brand-cs"})
     
 class ProcedureNotDoneReason(ConceptEnum):
     DONE_ELSEWHERE = ("Done Elsewhere", {"code": "done-elsewhere", "display": "Performed Elsewhere", "system": "http://tecnomod-um.org/CodeSystem/stroke-proc-not-done-reason-cs"})
@@ -658,6 +669,7 @@ class ManagementAppointment(ConceptEnum):
 class AssessmentContext(ConceptEnum):
     PRESTROKE = ("Prestroke", {"code": "pre-stroke", "display": "Pre-stroke", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
     DISCHARGE = ("Discharge", {"code": "discharge", "display": "Discharge", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
+    POST_ACUTE = ("Post-Acute", {"code": "281381003", "display": "More than 24 hours after admission (qualifier value)", "system": "http://snomed.info/sct"})
     THREE_MONTHS = ("Three Months", {"code": "3-month", "display": "3 Month Follow-up", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
     ADMISSION = ("Admission", {"code": "admission", "display": "Admission", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
     HOURS_72 = ("72 Hours", {"code": "72-hours", "display": "72 Hours After Admission", "system": "http://tecnomod-um.org/CodeSystem/assessment-context-cs"})
@@ -725,7 +737,6 @@ class TimingMetricCodes(ConceptEnum):
     DOOR_TO_SYS_BP_LT140 = ("Door2SysBP<140", {"code": "D2SysBP<140", "display": "Door to Systolic Blood Pressure < 140 mmHg", "system": "http://tecnomod-um.org/CodeSystem/timing-metric-codes-cs"})
     DOOR_TO_REPERFUSION = ("Door2Reperfusion", {"code": "D2R", "display": "Door to Reperfusion", "system": "http://tecnomod-um.org/CodeSystem/timing-metric-codes-cs"})
     ONSET_TO_DOOR = ("Onset2Door", {"code": "O2D", "display": "Onset to Door", "system": "http://tecnomod-um.org/CodeSystem/timing-metric-codes-cs"})
-    HIGHEST_SYS_BP_AFTER24H = ("HighestSysBPAfter24Hours", {"code": "highest-sys-bp-after-24-hours", "display": "Highest Systolic Blood Pressure After 24 Hours", "system": "http://tecnomod-um.org/CodeSystem/timing-metric-codes-cs"})
     GROIN_TO_REPERFUSION = ("Groin2Reperfusion", {"code": "G2R", "display": "Groin to Reperfusion", "system": "http://tecnomod-um.org/CodeSystem/timing-metric-codes-cs"})
     FEVER_DAY_1 = ("FeverDay1", {"code": "temperature-checks-day-1", "display": "Temperature Checks Day 1", "system": "http://tecnomod-um.org/CodeSystem/timing-metric-codes-cs"})
     FEVER_DAY_2 = ("FeverDay2", {"code": "temperature-checks-day-2", "display": "Temperature Checks Day 2", "system": "http://tecnomod-um.org/CodeSystem/timing-metric-codes-cs"})
@@ -809,11 +820,11 @@ class NotMedicationReason(ConceptEnum):
     SIDE_EFFECT = ("Side Effect", {"code": "401207004", "display": "Medication side effects present (finding)", "system": "http://snomed.info/sct"})
     PLANNED = ("Planned", {"code": "397943006", "display": "Planned (qualifier value)", "system": "http://snomed.info/sct"})
     TERMINAL_ILLNESS = ("Terminal Illness", {"code": "300936002", "display": "Terminal illness (finding)", "system": "http://snomed.info/sct"})
-    CONSENT = ("Consent", {"code": "Not-Consent", "display": "Patient or family did not consent", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
-    COST = ("Cost", {"code": "Cost of drug", "display": "Cost of drug", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
-    NOT_AVAILABLE = ("Not Available", {"code": "Not-Available", "display": "Medication not available", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
-    NOT_LICENSED = ("Not Licensed", {"code": "Not-Licensed", "display": "Medication not licensed", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
-    NOT_CRITERIA = ("Not Criteria", {"code": "Not-Criteria", "display": "Patient does not meet criteria for medication", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
+    CONSENT = ("1", {"code": "Not-Consent", "display": "Patient or family did not consent", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
+    COST = ("2", {"code": "Cost of drug", "display": "Cost of drug", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
+    NOT_AVAILABLE = ("3", {"code": "Not-Available", "display": "Medication not available", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
+    NOT_LICENSED = ("4", {"code": "Not-Licensed", "display": "Medication not licensed", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
+    NOT_CRITERIA = ("5", {"code": "Not-Criteria", "display": "Patient does not meet criteria for medication", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
     FORGOT = ("Forgot", {"code": "Forgot", "display": "Patient forgot to take medication", "system": "http://tecnomod-um.org/CodeSystem/not-medication-reason-cs"})
 
 

@@ -67,7 +67,7 @@ services:
         APP_FHIR_TXBASEURL: ""
 
         # IG local con perfiles, extensiones, CodeSystems y ValueSets propios
-        APP_FHIR_IGCLASSPATHPACKAGES: "classpath:/ig/RESQ-IG-5.2.tgz"
+        APP_FHIR_IGCLASSPATHPACKAGES: "classpath:/ig/RESQ-IG-5.2.8.tgz"
       networks:
         resqnet:
           aliases: [validator]
