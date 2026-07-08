@@ -27,10 +27,14 @@ from scripts.modeling_context import StrokeCaseContext
 
 logger = logging.getLogger(__name__)
 
+DOCUMENT_PROBLEM_STATUSES = frozenset({
+    "Active",
+    "Remission",
+})
 
-
-
-
+DOCUMENT_PRIOR_MEDICATION_STATUSES = frozenset({
+    "Taking",
+})
 
 
 def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:    
@@ -159,9 +163,15 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
         ("Unknown", risk_factor_unknown),
         ("Remission", risk_factor_remission)
     ] # Group risk factors by clinical status in a list of tuples, where each tuple contains the clinical status and the corresponding list of risk factors
-    for condition in build_risk_factor_condition_profile(risk_factors=risk_grouped, patient_ref=patient_ref, encounter_ref=encounter_ref): # Build Condition resources for risk factors using the grouped risk factors and other relevant data from raw
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=condition, request=BundleEntryRequest(method="POST", url="Condition")))
+    
+    for status_key, risk_factors in risk_grouped:
+        conditions = build_risk_factor_condition_profile( risk_factors = [(status_key, risk_factors)], patient_ref = patient_ref, encounter_ref = encounter_ref)
+        document_sections = (DischargeSection.PROBLEM_LIST, ) if status_key in DOCUMENT_PROBLEM_STATUSES else ()
 
+    
+        for condition in conditions:
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=condition, request=BundleEntryRequest(method="POST", url="Condition")))
+            context.add_resource(condition, sections=document_sections)
     #################### 1.2. Before-onset medications (MedicationStatement) #######################
     med_taken, med_not_taken, med_unknown = get_before_onset_medications(raw)
     med_grouped = [
@@ -170,8 +180,13 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
         ("Unknown", med_unknown)
     ]
     
-    for med_statement in build_before_onset_medicationStatement_profile(med_grouped, patient_ref, encounter_ref, intracerebral_hemorrhage, prestroke_noac_timestamp):
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=med_statement, request=BundleEntryRequest(method="POST", url="MedicationStatement")))
+    for status_key, medications in med_grouped:
+        medication_statements = build_before_onset_medicationStatement_profile(medications_list =[(status_key, medications)], patient_ref = patient_ref, encounter_ref = encounter_ref, intracerebral_hemorrhage = intracerebral_hemorrhage, prestroke_noac_timestamp = prestroke_noac_timestamp)
+        document_sections = (DischargeSection.PATIENT_HISTORY, ) if status_key in DOCUMENT_PRIOR_MEDICATION_STATUSES else ()
+
+        for medication_statement in medication_statements: 
+            context.add_resource(medication_statement, sections=document_sections)
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=med_statement, request=BundleEntryRequest(method="POST", url="MedicationStatement")))
 
     #################### 1.3. Glucose observation ########################
     glucose_value = safe_get(raw, "glucose", required=False) # Check if glucose level is present in raw data, not required
@@ -213,8 +228,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                             value_nihss=nihss_score,
                                             admission_nihss=True,
                                             discharge_nihss=False)
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=nihss_pre, request=BundleEntryRequest(method="POST", url="Observation")))
-
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=nihss_pre, request=BundleEntryRequest(method="POST", url="Observation")))
+        context.add_resource(nihss_pre, sections=(DischargeSection.ADMISSION_EVALUATION, ) )
     ################### 1.7. mRS score #############################
     prestroke_mrs = safe_get(raw, "prestroke_mrs", required=False) # Check if prestroke mRS score is present in raw data, not required
     if prestroke_mrs is not None:
@@ -224,7 +239,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                               prestroke=True, 
                                               discharge=False, 
                                               threem=False) # Build Observation resource for mRS score at admission using patient_ref, encounter_ref and mrs_score from raw data, field not required
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=mrs_admission, request=BundleEntryRequest(method="POST", url="Observation")))
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=mrs_admission, request=BundleEntryRequest(method="POST", url="Observation")))
+        context.add_resource(mrs_admission, sections=(DischargeSection.ADMISSION_EVALUATION, ) )
 
     ################### 1.8. Glasgow Coma Scale score #############################
     gcs_score = safe_get(raw, "gcs_score", required=False) # Check if Glasgow Coma Scale score is present in raw data, not required
@@ -314,23 +330,24 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
     if stroke_type is not None:
         stroke_type_enum = StrokeType.by_id(stroke_type) # Convert stroke type from raw data to StrokeType enum, field not required
         ############################ 2.2.1 Clinical symptoms of TIA (Observation) ######################################
-        obs_clinical_symptoms_ref_id = None
+        obs_clinical_symptoms_ref = None
         if stroke_type_enum == StrokeType.TRANSIENT_ISCHEMIC:
             tia_symptoms = safe_get(raw, "tia_clinical_symptoms", required=False)
             if tia_symptoms is not None:
                 logger.info("TIA symptoms obtained: %s", tia_symptoms)
-                obs_clinical_symptoms_ref = build_tia_clinical_symptomps_observation(patient_ref=patient_ref, # Build Observation resource for TIA clinical symptoms using patient_ref, encounter_ref and tia_symptoms from raw data, field not required
+                obs_clinical_symptoms = build_tia_clinical_symptomps_observation(patient_ref=patient_ref, # Build Observation resource for TIA clinical symptoms using patient_ref, encounter_ref and tia_symptoms from raw data, field not required
                                                                                 encounter_ref=encounter_ref,
                                                                                 tia_symptom=TiaClinicalSymptoms.by_id(tia_symptoms),
                                                                                 tia_duration=TiaSymptomDuration.by_id(safe_get(raw, "tia_symptoms_duration", required=False)))
             
-                obs_clinical_symptoms_ref_id = get_uuid()
-                entries.append(BundleEntry(fullUrl=obs_clinical_symptoms_ref_id, resource=obs_clinical_symptoms_ref, request=BundleEntryRequest(method="POST", url="Observation"))  )
+                obs_clinical_symptoms_ref = context.add_resource(obs_clinical_symptoms, sections=(DischargeSection.ADMISSION_EVALUATION, ) )
+                #entries.append(BundleEntry(fullUrl=obs_clinical_symptoms_ref_id, resource=obs_clinical_symptoms_ref, request=BundleEntryRequest(method="POST", url="Observation"))  )
+                
         bleeding_reason_list = get_bleeding_reason(raw) # Obtain bleeding reasons list from raw data using helper function, passing raw data
         condition_stroke_ref = get_uuid()
         condition_stroke = build_stroke_diagnosis_condition_profile(patient_ref = patient_ref, # Build Condition resource for stroke diagnosis using patient_ref and other relevant data from raw
                                                                     encounter_ref = encounter_ref,
-                                                                    stroke_type = StrokeType.by_id(safe_get(raw, "stroke_type", required=False)), # Obtain stroke type from raw data and convert to ConceptEnum, field not required
+                                                                    stroke_type = stroke_type_enum, # Obtain stroke type from raw data and convert to ConceptEnum, field not required
                                                                     stroke_type_mimics=MimicsDiagnosis.by_id(safe_get(raw, "stroke_mimics_diagnosis", required=False)), # Obtain stroke type mimics from raw data and convert to ConceptEnum, field not required
                                                                     stroke_etiology=get_stroke_etiology(raw),
                                                                     bleeding_reasons=bleeding_reason_list, # Use the obtained bleeding reasons list
@@ -343,9 +360,10 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                     wakeup_stroke = safe_get_bool(raw, "wakeup_stroke", required=False, default=False), # Obtain wake-up stroke boolean from raw data, field not required, default to False
                                                                     sleep_timestamp = safe_get(raw, "sleep_timestamp", required=False), # Obtain sleep timestamp from raw data, field not required
                                                                     onset_timestamp = safe_get(raw, "onset_timestamp", required=False), # Obtain onset timestamp from raw data, field not required
-                                                                    obs_symptoms_tia_ref = obs_clinical_symptoms_ref_id, # Placeholder for observed symptoms reference, can be used for extensions if needed
+                                                                    obs_symptoms_tia_ref = obs_clinical_symptoms_ref, # Placeholder for observed symptoms reference, can be used for extensions if needed
                                                                     ) # Placeholder for observed symptoms description, can be used for extensions if needed
-        entries.append(BundleEntry(fullUrl=condition_stroke_ref, resource=condition_stroke, request=BundleEntryRequest(method="POST", url="Condition")))
+        #entries.append(BundleEntry(fullUrl=condition_stroke_ref, resource=condition_stroke, request=BundleEntryRequest(method="POST", url="Condition")))
+        context.add_resource(condition_stroke, full_url=condition_stroke_ref, sections=(DischargeSection.ADMISSION_EVALUATION, DischargeSection.DIAGNOSTIC_SUMMARY, DischargeSection.HOSPITAL_COURSE ) )
         ########################### 2.2.2 Ischemic stroke type (Condition) ######################################
 
         if stroke_type_enum == StrokeType.ISCHEMIC:
@@ -360,8 +378,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                       encounter_ref=encounter_ref, 
                                                                       aspect_score=aspect_score_value
                                                                       ) # Build Observation resource for ASPECTS score using patient_ref, encounter_ref and aspect_score from raw data, field not required
-                entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_aspect_score, request=BundleEntryRequest(method="POST", url="Observation")))
-
+                #entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_aspect_score, request=BundleEntryRequest(method="POST", url="Observation")))
+                context.add_resource(observation_aspect_score, sections=(DischargeSection.ADMISSION_EVALUATION, DischargeSection.SIGNIFICANT_RESULTS) )
         ########################### 2.2.2.2 Thrombolysis (Procedure) ######################################
             
             thrombolysis_done = safe_get_bool(raw, "thrombolysis", required=False) # Check if thrombolysis done boolean is present in raw data, not required
