@@ -283,9 +283,9 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                     old_infarcts_subcortical=safe_get_bool(raw, "old_infarcts_subcortical", required=False, default=False))
         observation_list_old_infarcts_ids = []
         for obs in observation_list_old_infarcts:
-            obs_id = get_uuid()
+            obs_id = context.add_resource(obs)
             observation_list_old_infarcts_ids.append(obs_id)
-            entries.append(BundleEntry(fullUrl=obs_id, resource=obs, request=BundleEntryRequest(method="POST", url="Observation")))
+            #entries.append(BundleEntry(fullUrl=obs_id, resource=obs, request=BundleEntryRequest(method="POST", url="Observation")))
         ############################ 2.1.2 Perfusion deficit seen in brain imaging (Observation) ######################################
         observation_perfusion_deficit = build_observation_perfusion(patient_ref=patient_ref,
                                                                     encounter_ref=encounter_ref,
@@ -295,22 +295,21 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                     perfusion_carotid=safe_get_bool(raw, "perfusion_carotid", required=False, default=False),
                                                                     perfusion_volume=safe_get(raw, "perfusion_volume", required=False),
                                                                     hypoperfusion_volume=safe_get(raw, "hypoperfusion_volume", required=False)) # Build Observation resource for perfusion deficit using patient_ref, encounter_ref and perfusion-related data from raw data, field not required
-        obs_id_perfusion = get_uuid()
-        entries.append(BundleEntry(fullUrl=obs_id_perfusion, resource=observation_perfusion_deficit, request=BundleEntryRequest(method="POST", url="Observation")))
+        obs_id_perfusion = context.add_resource(observation_perfusion_deficit)
+        #entries.append(BundleEntry(fullUrl=obs_id_perfusion, resource=observation_perfusion_deficit, request=BundleEntryRequest(method="POST", url="Observation")))
 
         ############################# 2.1.3 DiagnosticReport generated from brain imaging results ######################################
-        diagnostic_report_imaging_id = get_uuid()
         diagnostic_report_imaging = build_imaging_diagnostic_report(patient_ref = patient_ref,
                                                                     encounter_ref= encounter_ref,
                                                                     perfusion_deficit_ref = obs_id_perfusion, # Placeholder for perfusion deficit observation reference, can be used for extensions if needed
                                                                     imaging_type = ImagingType.by_id(imaging_type), # Obtain imaging type from raw data and convert to ImagingType enum, field not required
                                                                     imaging_results_ref = observation_list_old_infarcts_ids) # Placeholder for imaging results, can be used for extensions if needed
     
-        entries.append(BundleEntry(fullUrl=diagnostic_report_imaging_id, resource=diagnostic_report_imaging, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
+        diagnostic_report_imaging_id = context.add_resource(diagnostic_report_imaging)
+        #entries.append(BundleEntry(fullUrl=diagnostic_report_imaging_id, resource=diagnostic_report_imaging, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
     
         ############################ 2.1.4 Imaging Procedure (Procedure) ######################################
         imaging_timestamp = safe_get(raw, "imaging_timestamp", required=False) # Check if imaging timestamp is present in raw data, not required
-        procedure_imaging_ref = get_uuid()
         proc_img = build_imaging_procedure(patient_ref = patient_ref, 
                                            encounter_ref = encounter_ref,
                                            diagnostic_report_ref= diagnostic_report_imaging_id,
@@ -319,7 +318,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                            post_acute_care=False,
                                            imaging_timestamp= imaging_timestamp) # Build Procedure resource for brain imaging using patient_ref, encounter_ref and imaging_type from raw data, field not required
                                                                          
-        entries.append(BundleEntry(fullUrl=procedure_imaging_ref, resource=proc_img, request=BundleEntryRequest(method="POST", url="Procedure")))
+        procedure_imaging_ref= context.add_resource(proc_img)
+        #entries.append(BundleEntry(fullUrl=procedure_imaging_ref, resource=proc_img, request=BundleEntryRequest(method="POST", url="Procedure")))
 
     ########################## 2.2 Stroke Type ###########################
     condition_stroke_ref = None
@@ -481,8 +481,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                 observation_mtici = build_observation_mtici_score(patient_ref=patient_ref,
                                                             encounter_ref=encounter_ref,
                                                             mtici_score=MTiciScore.by_id(mtici_score)) # Build Observation resource for mTICI score using patient_ref, encounter_ref and mtici_score from raw data, field not required
-                observation_mtici_ref = get_uuid()
-                entries.append(BundleEntry(fullUrl=observation_mtici_ref, resource=observation_mtici, request=BundleEntryRequest(method="POST", url="Observation")))
+                observation_mtici_ref = context.add_resource(observation_mtici, sections=(DischargeSection.SIGNIFICANT_RESULTS,DischargeSection.HOSPITAL_COURSE) )
+                #entries.append(BundleEntry(fullUrl=observation_mtici_ref, resource=observation_mtici, request=BundleEntryRequest(method="POST", url="Observation")))
 
             reperfusion_timestamp = safe_get(raw, "reperfusion_timestamp", required=False) # Check if reperfusion timestamp is present in raw data, not required
             procedure_thrombectomy = build_thrombectomy_procedure(patient_ref=patient_ref,
@@ -504,39 +504,42 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                         encounter_ref=encounter_ref,
                                                                                         thrombectomy_procedure_ref=thrombectomy_procedure_ref,
                                                                                         mtici_score_ref=observation_mtici_ref) # Build DiagnosticReport resource for mechanical thrombectomy using patient_ref, encounter_ref and references to thrombectomy procedure and mTICI score, field not required
-            diagnostic_report_thrombectomy_ref = get_uuid()
+            diagnostic_report_thrombectomy_ref = context.add_resource(diagnostic_report_thrombectomy, sections=(DischargeSection.SIGNIFICANT_RESULTS,) )
             entries.append(BundleEntry(fullUrl=diagnostic_report_thrombectomy_ref, resource=diagnostic_report_thrombectomy, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
         
         ####################### 2.2.4 Arterial occlusion (Observation + DiagnosticReport) ######################################
             
         occlusion_found = safe_get_bool(raw, "occlusion_found", required=False) # Check if arterial occlusion found boolean is present in raw data, not required
-        observation_ref_list = []
+        observation_ref_list: list[str] = []
         if occlusion_found is not None and occlusion_found is True:
             bodystructures_list = get_occlusions_list(raw)
             
             for bodystructure in bodystructures_list:
-                bodystructure_ref= get_uuid()
+                
                 bodystructure = build_bodyStructure(patient_ref=patient_ref,
                                                     structure=bodystructure[0], # Get occluded artery structure from bodystructure tuple, field not required
                                                      laterality=bodystructure[1]) # Build BodyStructure resource for arterial occlusion using patient_ref, encounter_ref and bodystructure from raw data, field not required
+                
+                bodystructure_ref = context.add_resource(bodystructure)
+
                 observation_occlusion = build_observation_occluded_artery(patient_ref=patient_ref,
                                                                     encounter_ref=encounter_ref,
                                                                     body_structure_ref=bodystructure_ref) # Build Observation resource for arterial occlusion using patient_ref, encounter_ref and bodystructure from raw data, field not required
-                observation_ref= get_uuid()
+                observation_ref= context.add_resource(observation_occlusion, sections=(DischargeSection.SIGNIFICANT_RESULTS,))
                 observation_ref_list.append(observation_ref)
-                entries.append(BundleEntry(fullUrl=bodystructure_ref, resource=bodystructure, request=BundleEntryRequest(method="POST", url="BodyStructure")))
-                entries.append(BundleEntry(fullUrl=observation_ref, resource=observation_occlusion, request=BundleEntryRequest(method="POST", url="Observation")))
+                #entries.append(BundleEntry(fullUrl=bodystructure_ref, resource=bodystructure, request=BundleEntryRequest(method="POST", url="BodyStructure")))
+                #entries.append(BundleEntry(fullUrl=observation_ref, resource=observation_occlusion, request=BundleEntryRequest(method="POST", url="Observation")))
             
         ############################# 2.1.3 DiagnosticReport generated from brain imaging results ######################################
         diagnostic_report_imaging_id = get_uuid()
         if imaging_type is not None:
-            diagnostic_report_imaging = build_imaging_diagnostic_report(patient_ref = patient_ref,
+            diagnostic_report_occlusion = build_imaging_diagnostic_report(patient_ref = patient_ref,
                                                                         encounter_ref= encounter_ref,
                                                                         imaging_type = ImagingType.by_id(imaging_type), # Obtain imaging type from raw data and convert to ImagingType enum, field not required
                                                                         imaging_results_ref = observation_ref_list) # Placeholder for imaging results, can be used for extensions if needed
         
-            entries.append(BundleEntry(fullUrl=diagnostic_report_imaging_id, resource=diagnostic_report_imaging, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
-
+            #entries.append(BundleEntry(fullUrl=diagnostic_report_imaging_id, resource=diagnostic_report_imaging, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
+            context.add_resource(diagnostic_report_occlusion, sections =(DischargeSection.SIGNIFICANT_RESULTS, ) if observation_ref_list else (), )
         
         ############################ 2.2.3 Intracerebral hemorrhage (Condition) ######################################
 
@@ -547,8 +550,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                             encounter_ref=encounter_ref, 
                                                                             bleeding_volume=bleeding_volume,
                                                                             post_acute_care=False) # Build Observation resource for intracerebral hemorrhage bleeding volume using patient_ref, encounter_ref and bleeding_volume from raw data, field required if stroke type is intracerebral hemorrhage
-                entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_bleeding_volume, request=BundleEntryRequest(method="POST", url="Observation")))
-
+                #entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_bleeding_volume, request=BundleEntryRequest(method="POST", url="Observation")))
+                context.add_resource(observation_bleeding_volume, sections=(DischargeSection.SIGNIFICANT_RESULTS, ))
                 anticoagulant_reversal = safe_get(raw, "anticoagulant_reversal", required = False) # Check if thrombolysis reversal medication administration is present in raw data, not required
                 
                 if anticoagulant_reversal is not None:
@@ -603,6 +606,14 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                             entries.append(BundleEntry(fullUrl=ich_treatment_hematoma_ref, resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
                         else:
                             entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
+            
+            ich_score = safe_get(raw, "ich_score", required=False) # Check if intracerebral hemorrhage score is present in raw data, not required
+            if ich_score is not None:
+                observation_ich_score = build_observation_ich_score(patient_ref=patient_ref, 
+                                                                    encounter_ref=encounter_ref, 
+                                                                    ich_score=int(ich_score)) # Build Observation resource for intracerebral hemorrhage score using patient_ref, encounter_ref and ich_score from raw data, field not required
+                context.add_resource(observation_ich_score, sections=(DischargeSection.SIGNIFICANT_RESULTS, ))
+                #entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_ich_score, request=BundleEntryRequest(method="POST", url="Observation")))
         ########################### 2.2.4 Subarachnoid hemorrhage (Condition) ######################################
         if stroke_type_enum == StrokeType.SUBARACHNOID_HEMORRHAGE:
             hunt_hess_score = safe_get(raw, "hunt_hess_score", required=False) # Check if Hunt and Hess score is present in raw data, required if stroke type is subarachnoid hemorrhage
@@ -611,7 +622,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                 observation_hunt_hess_score = build_observation_hunt_hess_score(patient_ref=patient_ref, 
                                                                             encounter_ref=encounter_ref, 
                                                                             hunt_hess_score=int(hunt_hess_score)) # Build Observation resource for Hunt and Hess score using patient_ref, encounter_ref and hunt_hess_score from raw data, field required if stroke type is subarachnoid hemorrhage
-                entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_hunt_hess_score, request=BundleEntryRequest(method="POST", url="Observation")))
+                context.add_resource(observation_hunt_hess_score, sections=(DischargeSection.SIGNIFICANT_RESULTS, ))
+                #entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_hunt_hess_score, request=BundleEntryRequest(method="POST", url="Observation")))
             
             sah_treatment_any = safe_get_bool(raw, "sah_treatment_any", required=False) # Check if any treatment for subarachnoid hemorrhage was given, not required
             if sah_treatment_any: # Check if any treatment for subarachnoid hemorrhage was given, not required
@@ -767,16 +779,17 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                    hemorrhagic_transformation_type=safe_get(raw, "hemorrhagic_transformation_type", required=False), # Check if hemorrhagic transformation type is present in raw data, not required
             )
                     for obs in observation_finding_post_ivt_mt:
-                        obs_ref = get_uuid()
+                        obs_ref = context.add_resource(obs, sections=(DischargeSection.SIGNIFICANT_RESULTS,))
                         obs_ref_list.append(obs_ref)
-                        entries.append(BundleEntry(fullUrl=obs_ref, resource=obs, request=BundleEntryRequest(method="POST", url="Observation")))
+                        #entries.append(BundleEntry(fullUrl=obs_ref, resource=obs, request=BundleEntryRequest(method="POST", url="Observation")))
             if post_imaging_type is not None:
                 diagnostic_report_post_neurosurgery = build_ct_mr_after_ivt_diagnostic_report(patient_ref=patient_ref,
                                                                                         encounter_ref=encounter_ref,
-                                                                                        observation_ref=[obs_ref_list],
+                                                                                        observation_ref=obs_ref_list,
                                                                                         imaging_type=post_imaging_type) # Build DiagnosticReport resource for post-neurosurgery imaging using patient_ref, encounter_ref and post-neurosurgery imaging type from raw data, field not required
             
-                entries.append(BundleEntry(fullUrl=get_uuid(), resource=diagnostic_report_post_neurosurgery, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
+                context.add_resource(diagnostic_report_post_neurosurgery, sections=(DischargeSection.SIGNIFICANT_RESULTS,) )
+                #entries.append(BundleEntry(fullUrl=get_uuid(), resource=diagnostic_report_post_neurosurgery, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
 
         # if recanalization_done: # If recanalization treatment for cerebral venous thrombosis was done, build Procedure resource for recanalization
         #     procedure_imaging_recanalization = build_cvt_recanalization_procedure(patient_ref=patient_ref,
@@ -808,24 +821,26 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
             carotid_stenosis = safe_get_bool(raw, "carotid_stenosis", required=False, default=False)  # Check if carotid stenosis percentage is present in raw data, not required
             carotid_stenosis_level = safe_get(raw, "carotid_stenosis_level", required=False) # Check if carotid stenosis level is present in raw data, not required
             
-            carotid_stenosis_observation_ref = get_uuid()
             carotid_stenosis_observation = build_observation_carotid_stenosis(patient_ref=patient_ref,
                                                                             encounter_ref=encounter_ref,
                                                                             carotid_stenosis=carotid_stenosis,
                                                                             carotid_stenosis_level=CarotidStenosisLevel.by_id(carotid_stenosis_level)) # Build Observation resource for carotid stenosis using patient_ref, encounter_ref and carotid stenosis percentage and level from raw data, field not required
-            entries.append(BundleEntry(fullUrl=carotid_stenosis_observation_ref, resource=carotid_stenosis_observation, request=BundleEntryRequest(method="POST", url="Observation")))
-            diagnostic_report_carotid_ref = get_uuid()
+            carotid_stenosis_observation_ref = context.add_resource(carotid_stenosis_observation, sections=(DischargeSection.SIGNIFICANT_RESULTS,))
+            #entries.append(BundleEntry(fullUrl=carotid_stenosis_observation_ref, resource=carotid_stenosis_observation, request=BundleEntryRequest(method="POST", url="Observation")))
+            #diagnostic_report_carotid_ref = get_uuid()
             diagnostic_report_carotid = build_carotid_arteries_imaging_diagnostic_report(patient_ref=patient_ref,
                                                                                         encounter_ref=encounter_ref,
                                                                                         observation_ref=carotid_stenosis_observation_ref
                                                                                         ) # Build DiagnosticReport resource for carotid artery imaging using patient_ref, encounter_ref and carotid artery imaging boolean from raw data, field not required
-            entries.append(BundleEntry(fullUrl=diagnostic_report_carotid_ref, resource=diagnostic_report_carotid, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
+            diagnostic_report_carotid_ref = context.add_resource(diagnostic_report_carotid, sections=(DischargeSection.SIGNIFICANT_RESULTS,))
+            #entries.append(BundleEntry(fullUrl=diagnostic_report_carotid_ref, resource=diagnostic_report_carotid, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
 
             procedure_carotid = build_carotid_imaging_procedure(patient_ref=patient_ref,
                                                                 encounter_ref=encounter_ref,
                                                                 diagnostic_report_ref=diagnostic_report_carotid_ref,
                                                                 carotid_arteries_imaging_done=carotid_arteries_imaging) # Build Procedure resource for carotid artery imaging using patient_ref, encounter_ref and carotid artery imaging boolean from raw data, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_carotid, request=BundleEntryRequest(method="POST", url="Procedure")))
+            context.add_resource(procedure_carotid)
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_carotid, request=BundleEntryRequest(method="POST", url="Procedure")))
 
             carotid_endardectomy_done = safe_get_bool(raw, "carotid_endardectomy", required=False, default=False) # Check if carotid endardectomy boolean is present in raw data, not required
             if carotid_endardectomy_done is not None:
