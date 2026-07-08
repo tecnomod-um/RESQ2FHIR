@@ -188,6 +188,12 @@ SECTION_ORDER: tuple[DischargeSection, ...] = tuple(
     )
 )
 
+REGISTRY_ONLY_FIELDS = (
+    "door_to_needle",
+    "door_to_groin",
+    "door_to_door",
+)
+
 OCCLUSION_FIELDS = (
     "occlusion_left_mca_m1",
     "occlusion_left_mca_m2",

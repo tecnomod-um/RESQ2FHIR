@@ -13,10 +13,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from fhir.resources.bundle import BundleEntry
+from collections.abc import Iterable
+from typing import Any
 
+from fhir.resources.bundle import BundleEntry, BundleEntryRequest
+
+from scripts.discharge_summary.sections import SECTION_DEFINITIONS
 from scripts.enum_models import DischargeSection
-from scripts.utils import TransformError
+from scripts.utils import TransformError, get_uuid
 
 
 @dataclass
@@ -50,22 +54,66 @@ class StrokeCaseContext:
     encounter_ref: str | None = None
     organization_ref: str | None = None
 
+
+    def _validate_sections(self,resource: Any,sections: Iterable[DischargeSection],) -> set[DischargeSection]:
+        """Validate that a resource type is permitted in every assigned section."""
+
+        resource_type = resource.get_resource_type()
+        normalized_sections = set(sections)
+
+        for section in normalized_sections:
+            definition = SECTION_DEFINITIONS.get(section)
+
+            if definition is None:
+                raise TransformError(
+                    f"Unknown discharge-summary section: {section}"
+                )
+
+            if resource_type not in definition.entry_types:
+                allowed = ", ".join(
+                    sorted(definition.entry_types)
+                )
+
+                raise TransformError(
+                    f"FHIR resource type {resource_type} cannot be added to "
+                    f"section '{definition.title}'. "
+                    f"Allowed resource types: {allowed}."
+                )
+
+        return normalized_sections
+    
     def index_transaction_entries(self) -> None:
-        """Rebuild the resource index from the transaction entries.
+        """Rebuild the resource index without losing section assignments.
 
-        This method allows the current modeling implementation to continue
-        appending BundleEntry objects directly to transaction_entries.
-
-        Once every insertion uses StrokeCaseContext.add_resource(), this
-        reindexing step will no longer be necessary.
+        Resources added through add_resource() are already indexed and may already
+        contain discharge-summary section assignments. Legacy resources still
+        appended directly to transaction_entries are indexed here with no section.
         """
+
+        preserved_sections = {
+            full_url: set(record.sections)
+            for full_url, record in self.resources_by_full_url.items()
+        }
 
         self.resources_by_full_url.clear()
 
         for entry in self.transaction_entries:
-            self.register_entry(entry)
+            if entry.fullUrl is None:
+                raise TransformError(
+                    "Cannot index a FHIR resource without BundleEntry.fullUrl."
+                )
 
-    def register_entry(self, entry: BundleEntry) -> StrokeCaseResource:
+            full_url = str(entry.fullUrl)
+
+            self.register_entry(
+                entry,
+                sections=preserved_sections.get(
+                    full_url,
+                    (),
+                ),
+            )
+
+    def register_entry(self, entry: BundleEntry, sections: Iterable[DischargeSection] = ()) -> StrokeCaseResource:
         """Register an already-created BundleEntry in the case index."""
 
         if entry.fullUrl is None:
@@ -85,9 +133,15 @@ class StrokeCaseContext:
                 f"Duplicate BundleEntry.fullUrl in stroke case: {full_url}"
             )
 
+        validated_sections = self._validate_sections(
+            entry.resource,
+            sections,
+        )
+
         record = StrokeCaseResource(
             full_url=full_url,
             resource=entry.resource,
+            sections=validated_sections,
         )
 
         self.resources_by_full_url[full_url] = record
@@ -116,6 +170,77 @@ class StrokeCaseContext:
 
         return record
 
+    def add_resource(
+        self,
+        resource: Any,
+        *,
+        full_url: str | None = None,
+        sections: Iterable[DischargeSection] = (),
+    ) -> str:
+        """Add and register one resource in the transaction Bundle.
+
+        The returned fullUrl can be used immediately by subsequent resources.
+        Document sections are optional because some resources are document-header
+        resources or transitive dependencies rather than direct section entries.
+        """
+
+        if resource is None:
+            raise TransformError(
+                "Cannot add an empty FHIR resource to the stroke case."
+            )
+
+        full_url = full_url or get_uuid()
+        resource_type = resource.get_resource_type()
+
+        if full_url in self.resources_by_full_url:
+            raise TransformError(
+                f"Duplicate BundleEntry.fullUrl in stroke case: {full_url}"
+            )
+
+        if any(
+            entry.fullUrl is not None
+            and str(entry.fullUrl) == full_url
+            for entry in self.transaction_entries
+        ):
+            raise TransformError(
+                f"Duplicate BundleEntry.fullUrl in stroke case: {full_url}"
+            )
+
+        validated_sections = self._validate_sections(
+            resource,
+            sections,
+        )
+
+        entry = BundleEntry(
+            fullUrl=full_url,
+            resource=resource,
+            request=BundleEntryRequest(
+                method="POST",
+                url=resource_type,
+            ),
+        )
+
+        self.transaction_entries.append(entry)
+
+        self.resources_by_full_url[full_url] = StrokeCaseResource(
+            full_url=full_url,
+            resource=resource,
+            sections=validated_sections,
+        )
+
+        return full_url
+    
+    def resources_for_section(
+        self,
+        section: DischargeSection,
+    ) -> tuple[StrokeCaseResource, ...]:
+        """Return section resources in transaction-entry order."""
+
+        return tuple(
+            record
+            for record in self.resources
+            if section in record.sections
+        )
     @property
     def resources(self) -> tuple[StrokeCaseResource, ...]:
         """Return registered resources in transaction-entry order."""

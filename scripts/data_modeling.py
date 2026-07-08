@@ -6,7 +6,7 @@ Orchestrates the construction of FHIR resources from raw stroke data.
 import logging
 
 from fhir.resources.bundle import Bundle, BundleEntry, BundleEntryRequest
-from scripts.enum_models import AdmissionDepartment, AdmissionPathway, AnticoagulantReversal, AssessmentContext, AtrialFibrillationOrFlutter, CarotidStenosisLevel, DischargeDestination, DischargeFacilityDepartment, DischargeFacilityType, FirstContactPlace, GCSScore, HemorrhagicTransformationType, HospitalizedIn, ImagingDone, ImagingType, InsulinOnHyperglycemiaTiming, IvtApplicationDepartment, IvtDrug, MRsScore, MTiciScore, ManagementAppointment, Medications, MimicsDiagnosis, Nimodipinetiming, NoAnticoagulantReason, NoIchTreatmentReason, NoThrombectomyReason, NoThrombolysisReason, ParacetamolOnFeverTiming, PostNeurosurgeryImaging, PostRecanalizationImaging, ProcedureNotDoneReason, ScreeningPerformer, Sex, StrokeEtiology, StrokeType, SwallowingScreeningDone, SwallowingScreeningTiming, SwallowingScreeningType, TenecteplaseBrand, ThreeMonthContactMode, TiaClinicalSymptoms, TiaSymptomDuration
+from scripts.enum_models import AdmissionDepartment, AdmissionPathway, AnticoagulantReversal, AssessmentContext, AtrialFibrillationOrFlutter, CarotidStenosisLevel, DischargeDestination, DischargeFacilityDepartment, DischargeFacilityType, FirstContactPlace, GCSScore, HemorrhagicTransformationType, HospitalizedIn, ImagingDone, ImagingType, InsulinOnHyperglycemiaTiming, IvtApplicationDepartment, IvtDrug, MRsScore, MTiciScore, ManagementAppointment, Medications, MimicsDiagnosis, Nimodipinetiming, NoAnticoagulantReason, NoIchTreatmentReason, NoThrombectomyReason, NoThrombolysisReason, ParacetamolOnFeverTiming, PostNeurosurgeryImaging, PostRecanalizationImaging, ProcedureNotDoneReason, ScreeningPerformer, Sex, StrokeEtiology, StrokeType, SwallowingScreeningDone, SwallowingScreeningTiming, SwallowingScreeningType, TenecteplaseBrand, ThreeMonthContactMode, TiaClinicalSymptoms, TiaSymptomDuration, DischargeSection
 from scripts.fhir_resources.bodyStructure import build_bodyStructure
 from scripts.fhir_resources.diagnosticReport import build_carotid_arteries_imaging_diagnostic_report, build_ct_mr_after_ivt_diagnostic_report, build_imaging_diagnostic_report, build_mechanical_thrombectomy_diagnostic_report
 from scripts.fhir_resources.location import build_hospitalized_location, build_location
@@ -79,34 +79,43 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
     organization = build_organization(str(hospital_name), provider_id=safe_get(raw, "provider_id", required=False))
     first_hospital_ref = organization_ref
     entries = context.transaction_entries
-    entries = [BundleEntry(fullUrl=organization_ref, resource=organization, request=BundleEntryRequest(method="POST", url="Organization"))] # Initialize entries list with Organization resource built from hospital_name in raw data, field required
+    context.add_resource(full_url=organization_ref, resource=organization)
+    #entries.append(BundleEntry(fullUrl=organization_ref, resource=organization, request=BundleEntryRequest(method="POST", url="Organization"))) # Initialize entries list with Organization resource built from hospital_name in raw data, field required
 
     ########################## 0.2. Patient ##########################
     sex = safe_get(raw, "sex", required=False) # Obtain sex from raw data, field not required
     patient = build_Patient(patient_id=file_id, patient_sex=Sex.by_id(sex)) # Build Patient resource using file_id and sex
-    entries.append(BundleEntry(fullUrl=patient_ref, resource=patient, request=BundleEntryRequest(method="POST", url="Patient"))) # Add Patient resource to entries with reference patient_ref
+    #entries.append(BundleEntry(fullUrl=patient_ref, resource=patient, request=BundleEntryRequest(method="POST", url="Patient"))) # Add Patient resource to entries with reference patient_ref
+    context.add_resource(full_url=patient_ref, resource=patient) # Add Patient resource to context with reference patient_ref
 
-    age = build_observation_age(patient_ref=patient_ref, encounter_ref=encounter_ref, age=safe_get(raw, "age", required=False)) # Build Observation resource for age using patient_ref, encounter_ref and age from raw data, field required
-    entries.append(BundleEntry(fullUrl=get_uuid(), resource=age, request=BundleEntryRequest(method="POST", url="Observation")))
-
+    age_value = safe_get(raw, "age", required=False) # Obtain age from raw data, field not required
+    age = build_observation_age(patient_ref=patient_ref, encounter_ref=encounter_ref, age=age_value) # Build Observation resource for age using patient_ref, encounter_ref and age from raw data, field required
+    #entries.append(BundleEntry(fullUrl=get_uuid(), resource=age, request=BundleEntryRequest(method="POST", url="Observation")))
+    context.add_resource(age, sections=(DischargeSection.ADMISSION_EVALUATION, ) if age_value is not None else ()) # Add Observation resource for age to context with reference patient_ref and encounter_ref, and assign to ADMISSION_EVALUATION section if age is present
     ########################## 0.3. Encounter ##########################
     first_contact_place = safe_get(raw, "first_contact_place", required=False)
     first_location_ref = ""
     if first_contact_place is not None:
         first_location = build_location(FirstContactPlace.by_id(first_contact_place)) # Build Location resource for first contact place using first_contact_place from raw data, field not required
         first_location_ref = get_uuid()
-        entries.append(BundleEntry(fullUrl=first_location_ref, resource=first_location, request=BundleEntryRequest(method="POST", url="Location")))
-    hospitalized_in = safe_get(raw, "hospitalized_in", required=False)
+        #entries.append(BundleEntry(fullUrl=first_location_ref, resource=first_location, request=BundleEntryRequest(method="POST", url="Location")))
+        context.add_resource(first_location, full_url=first_location_ref)
+    hospitalized_in_value = safe_get(raw, "hospitalized_in", required=False)
     hosp_loc_ref = get_uuid()
-    if hospitalized_in is None:
-        hospitalized_in = ""
+    if hospitalized_in_value is None:
+        hospitalized_in_value = ""
     admission_department = safe_get(raw, "admission_department", required=False)
     if admission_department is None:
         admission_department = ""
             # Create hospitalized_in extension
-    hosp_loc = build_hospitalized_location(HospitalizedIn.by_id(hospitalized_in), AdmissionDepartment.by_id(admission_department))
+    hosp_loc = build_hospitalized_location(HospitalizedIn.by_id(hospitalized_in_value), AdmissionDepartment.by_id(admission_department))
 
-    entries.append(BundleEntry(fullUrl=hosp_loc_ref, resource=hosp_loc, request=BundleEntryRequest(method="POST", url="Location")))
+    #entries.append(BundleEntry(fullUrl=hosp_loc_ref, resource=hosp_loc, request=BundleEntryRequest(method="POST", url="Location")))
+    context.add_resource(hosp_loc,full_url=hosp_loc_ref,
+        sections=(
+            DischargeSection.ADMISSION_EVALUATION,
+        ) if hospitalized_in_value is not None else (),
+    )
     transferred_from_hospital = safe_get(raw, "transferred_from_hospital", required=False)
     if transferred_from_hospital is not None and transferred_from_hospital != "":
         transferred_from_hosp_loc = build_organization(str(transferred_from_hospital)) # Build Organization resource for transferring hospital using Locations enum, field not required
@@ -114,11 +123,14 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
         entries.append(BundleEntry(fullUrl=transferred_from_hosp_loc_ref, resource=transferred_from_hosp_loc, request=BundleEntryRequest(method="POST", url="Organization")))
 
 
-    logger.info("Hospitalized in: %s, Admission department: %s", hospitalized_in, admission_department)
+    logger.info("Hospitalized in: %s, Admission department: %s", hospitalized_in_value, admission_department)
     hospital_timestamp = safe_get(raw, "hospital_timestamp", required=False)
+    discharge_destination_value = safe_get(raw,"discharge_destination",required=False)
+    discharge_date = safe_get(raw,"discharge_date",required=False)
+    
     encounter = build_stroke_encounter_profile(patient_ref=patient_ref, # Build Encounter resource using patient_ref and other relevant data from raw
                                                 arrival_mode=AdmissionPathway.by_id(safe_get(raw, "arrival_mode_id", required=False)), # Obtain arrival mode from raw data and convert to ArrivalMode enum, field not required
-                                                discharge_destination=DischargeDestination.by_id(safe_get(raw, "discharge_destination", required=False)), # Obtain discharge destination from raw data and convert to DischargeDestination enum, field not required
+                                                discharge_destination=DischargeDestination.by_id(discharge_destination_value), # Obtain discharge destination from raw data and convert to DischargeDestination enum, field not required
                                                 discharge_facility_department=DischargeFacilityDepartment.by_id(safe_get(raw, "discharge_facility_department", required=False)), # Obtain discharge facility department from raw data and convert to DischargeFacilityDepartment enum, field not required
                                                 discharge_facility_type=DischargeFacilityType.by_id(safe_get(raw, "discharge_facility_type", required=False)), # Obtain discharge facility type from raw data and convert to DischargeDestination enum, field not required
                                                 first_contact_place=FirstContactPlace.by_id(first_contact_place), # Obtain first contact place from raw data and convert to Locations enum, field not required
@@ -126,15 +138,15 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                 hospitalized_location_ref= hosp_loc_ref,
                                                 inhospital_stroke=safe_get_bool(raw, "inhospital_stroke", required=False, default=False), # Obtain inhospital stroke boolean from raw data, field not required, default to False
                                                 hospital_timestamp=hospital_timestamp, # Obtain hospital timestamp from raw data, field not required
-                                                discharge_date=safe_get(raw, "discharge_date", required=False), # Obtain discharge date from raw data, field not required
+                                                discharge_date=discharge_date, # Obtain discharge date from raw data, field not required
                                                 #first_hospital=safe_get_bool(raw, "first_hospital", required=False, default=False), # Obtain first hospital boolean from raw data, field not required, default to False
                                                 post_acute_care=safe_get_bool(raw, "post_acute_care", required=False, default=False), # Obtain post-acute care boolean from raw data, field not required, default to False
                                                 ems_prenotification=safe_get_bool(raw, "ems_prenotification", required=False, default=False),
                                                 first_hospital_ref=first_hospital_ref,
                                                 transfer_timestamp=safe_get(raw, "transfer_timestamp", required=False)) # Obtain EMS prenotification boolean from raw data, field not required, default to False
     
-    entries.append(BundleEntry(fullUrl=encounter_ref, resource=encounter, request=BundleEntryRequest(method="POST", url="Encounter")))
-
+    #entries.append(BundleEntry(fullUrl=encounter_ref, resource=encounter, request=BundleEntryRequest(method="POST", url="Encounter")))
+    context.add_resource(encounter, full_url=encounter_ref,sections=(DischargeSection.DISCHARGE_DETAILS,) if discharge_date is not None or discharge_destination_value is not None else ())
 ########################### End Admission Data Form ########################################################################
     intracerebral_hemorrhage = stroke_type_enum == StrokeType.INTRACEREBRAL_HEMORRHAGE
     prestroke_noac_timestamp = safe_get(raw, "prestroke_noac_timestamp", required=False)
