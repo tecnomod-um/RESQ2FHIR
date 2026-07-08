@@ -6,7 +6,7 @@ Orchestrates the construction of FHIR resources from raw stroke data.
 import logging
 
 from fhir.resources.bundle import Bundle, BundleEntry, BundleEntryRequest
-from scripts.enum_models import AdmissionDepartment, AdmissionPathway, AnticoagulantReversal, AssessmentContext, AtrialFibrillationOrFlutter, CarotidStenosisLevel, DischargeDestination, DischargeFacilityDepartment, DischargeFacilityType, FirstContactPlace, GCSScore, HemorrhagicTransformationType, HospitalizedIn, ImagingDone, ImagingType, InsulinOnHyperglycemiaTiming, IvtApplicationDepartment, IvtDrug, MRsScore, MTiciScore, ManagementAppointment, Medications, MimicsDiagnosis, Nimodipinetiming, NoAnticoagulantReason, NoIchTreatmentReason, NoThrombectomyReason, NoThrombolysisReason, ParacetamolOnFeverTiming, PostNeurosurgeryImaging, PostRecanalizationImaging, ProcedureNotDoneReason, ScreeningPerformer, Sex, StrokeEtiology, StrokeType, SwallowingScreeningDone, SwallowingScreeningTiming, SwallowingScreeningType, TenecteplaseBrand, ThreeMonthContactMode, TiaClinicalSymptoms, TiaSymptomDuration, DischargeSection
+from scripts.enum_models import AdmissionDepartment, AdmissionPathway, AnticoagulantReversal, AssessmentContext, AtrialFibrillationOrFlutter, CarotidStenosisLevel, DischargeDestination, DischargeFacilityDepartment, DischargeFacilityType, FirstContactPlace, GCSScore, HemorrhagicTransformationType, HospitalizedIn, ImagingDone, ImagingType, InsulinOnHyperglycemiaTiming, IvtApplicationDepartment, IvtDrug, MRsScore, MTiciScore, ManagementAppointment, Medications, MimicsDiagnosis, Nimodipinetiming, NoAnticoagulantReason, NoAnticoagulantReversalReason, NoIchTreatmentReason, NoThrombectomyReason, NoThrombolysisReason, ParacetamolOnFeverTiming, PostNeurosurgeryImaging, PostRecanalizationImaging, ProcedureNotDoneReason, ScreeningPerformer, Sex, StrokeEtiology, StrokeType, SwallowingScreeningDone, SwallowingScreeningTiming, SwallowingScreeningType, TenecteplaseBrand, ThreeMonthContactMode, TiaClinicalSymptoms, TiaSymptomDuration, DischargeSection
 from scripts.fhir_resources.bodyStructure import build_bodyStructure
 from scripts.fhir_resources.diagnosticReport import build_carotid_arteries_imaging_diagnostic_report, build_ct_mr_after_ivt_diagnostic_report, build_imaging_diagnostic_report, build_mechanical_thrombectomy_diagnostic_report
 from scripts.fhir_resources.location import build_hospitalized_location, build_location
@@ -35,6 +35,26 @@ DOCUMENT_PROBLEM_STATUSES = frozenset({
 DOCUMENT_PRIOR_MEDICATION_STATUSES = frozenset({
     "Taking",
 })
+
+def document_sections_for_procedure(
+    procedure,
+    *,
+    include_not_done: bool = False,
+) -> tuple[DischargeSection, ...]:
+    """Return document sections for a major clinical procedure."""
+
+    if procedure.status == "completed":
+        return (
+            DischargeSection.SIGNIFICANT_PROCEDURES,
+            DischargeSection.HOSPITAL_COURSE,
+        )
+
+    if procedure.status == "not-done" and include_not_done:
+        return (
+            DischargeSection.SIGNIFICANT_PROCEDURES,
+        )
+
+    return ()
 
 
 def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:    
@@ -397,8 +417,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                 if thrombolysis_location_value is not None:
                     logger.info("Thrombolysis location: %s", thrombolysis_location_value)
                     thrombolysis_location = build_location(IvtApplicationDepartment.by_id(thrombolysis_location_value)) # Build Location resource for thrombolysis location
-                    entries.append(BundleEntry(fullUrl=thrombolysis_location_ref, resource=thrombolysis_location, request=BundleEntryRequest(method="POST", url="Location")))
-                
+                    #entries.append(BundleEntry(fullUrl=thrombolysis_location_ref, resource=thrombolysis_location, request=BundleEntryRequest(method="POST", url="Location")))
+                    context.add_resource(thrombolysis_location,full_url=thrombolysis_location_ref,)
                 medication_thrombolysis = safe_get(raw, "ivt_drug", required=False) # Check if thrombolysis medication is present in raw data, not required
                 ivt_drug_dose = safe_get(raw, "ivt_drug_dose", required=False) # Check if thrombolysis medication dose is present in raw data, not required
                 
@@ -412,9 +432,9 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                         logger.info("Tenecteplase brand: %s", tenecteplase_brand)
                         if tenecteplase_brand is not None:
                             medication_thrombolysis_resource = build_tenecteplase_brand_medication(TenecteplaseBrand.by_id(tenecteplase_brand))
-                            medication_thrombolysis_ref = get_uuid()
-                            medication_thrombolysis_med = medication_thrombolysis_ref
-                            entries.append(BundleEntry(fullUrl=medication_thrombolysis_ref, resource=medication_thrombolysis_resource, request=BundleEntryRequest(method="POST", url="Medication")))
+                            medication_thrombolysis_ref = context.add_resource(medication_thrombolysis_resource)
+                            #medication_thrombolysis_med = medication_thrombolysis_ref
+                            #entries.append(BundleEntry(fullUrl=medication_thrombolysis_ref, resource=medication_thrombolysis_resource, request=BundleEntryRequest(method="POST", url="Medication")))
                     
                     else:
                          medication_thrombolysis_med = medication_thrombolysis
@@ -427,8 +447,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                 medication= medication_thrombolysis_med, # Obtain thrombolysis medication from raw data and convert to Medications enum, field not required
                                                                                 medication_timestamp=bolus_timestamp,
                                                                                 dose = int(ivt_drug_dose))    # Convert dose to integer and pass to build_medicationAdministration
-                    entries.append(BundleEntry(fullUrl=medicationAdministration_thrombolysis_ref, resource=medicationAdministration_thrombolysis, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
-
+                    #entries.append(BundleEntry(fullUrl=medicationAdministration_thrombolysis_ref, resource=medicationAdministration_thrombolysis, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
+                    context.add_resource(medicationAdministration_thrombolysis, full_url=medicationAdministration_thrombolysis_ref, sections=(DischargeSection.PHARMACOTHERAPY,))
         ############################ 2.2.2.4 Thombolysis administration reversal (MedicationAdministration) ######################################
 
                 medicationAdministration_reversal = safe_get(raw, "ivt_antidote_given", required = False) # Check if thrombolysis reversal medication administration is present in raw data, not required
@@ -444,8 +464,7 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                 medication= Medications.ANTICOAGULANT_REVERSAL, # Use a specific medication for thrombolysis reversal, can be extended to use different medications if needed
                                                                                 medication_timestamp=anticoagulant_reversal_timestamp,
                                                                                 dose = None)    # Dose is not applicable for reversal medication, pass None
-                        entries.append(BundleEntry(fullUrl=medicationAdministration_reversal_ref, resource=medicationAdministration_thrombolysis_reversal, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
-            else:
+                        context.add_resource(medicationAdministration_reversal, full_url=medicationAdministration_reversal_ref, sections=(DischargeSection.PHARMACOTHERAPY,) if medicationAdministration_thrombolysis_reversal.status == "completed" else (), )            else:
                 no_thrombolysis_reason_id = safe_get(raw, "no_thrombolysis_reason", required=False) # Check if no thrombolysis reason is present in raw data, not required
             
             if thrombolysis_done is not None:
@@ -457,8 +476,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                     post_acute_care=False,
                                                                     no_thrombolysis_reason_id=NoThrombolysisReason.by_id(no_thrombolysis_reason_id) if no_thrombolysis_reason_id else None,
                                                                     bolus_timestamp=bolus_timestamp)
-                entries.append(BundleEntry(fullUrl=procedure_thrombolysis_ref, resource=procedure_thrombolysis, request=BundleEntryRequest(method="POST", url="Procedure")))
-        
+                #entries.append(BundleEntry(fullUrl=procedure_thrombolysis_ref, resource=procedure_thrombolysis, request=BundleEntryRequest(method="POST", url="Procedure")))
+                context.add_resource(procedure_thrombolysis, full_url=procedure_thrombolysis_ref, sections=document_sections_for_procedure(procedure_thrombolysis, include_not_done = True), )
         ######################## 2.2.2.5 Mechanical thrombectomy (Procedure) ######################################
 
         thrombectomy_done = safe_get_bool(raw, "thrombectomy", required=False) # Check if mechanical thrombectomy done boolean is present in raw data, not required
@@ -473,7 +492,7 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                 post_acute_care=False,
                                                                 no_thrombectomy_reason_id=NoThrombectomyReason.by_id(no_thrombectomy_reason_id),
                                                                 transfer_timestamp=safe_get(raw, "transfer_timestamp", required=False)) # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-            entries.append(BundleEntry(fullUrl=thrombectomy_procedure_ref, resource=procedure_thrombectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
+            #entries.append(BundleEntry(fullUrl=thrombectomy_procedure_ref, resource=procedure_thrombectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
         elif thrombectomy_done is not None and thrombectomy_done is True:
             groin_puncture_timestamp = safe_get(raw, "puncture_timestamp", required=False) # Check if groin puncture timestamp is present in raw data, not required
             mtici_score = safe_get(raw, "mtici_score", required=False) # Check if mTICI score is present in raw data, not required
@@ -498,14 +517,17 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                 mt_complications_perforation=safe_get_bool(raw,"mt_complications_perforation", required=False), # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
                                                                 post_acute_care=False, # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
                                                                 transfer_timestamp=None) # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-            entries.append(BundleEntry(fullUrl=thrombectomy_procedure_ref, resource=procedure_thrombectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
-
-            diagnostic_report_thrombectomy = build_mechanical_thrombectomy_diagnostic_report(patient_ref=patient_ref,
+            #entries.append(BundleEntry(fullUrl=thrombectomy_procedure_ref, resource=procedure_thrombectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
+        if procedure_thrombectomy is not None:
+            context.add_resource(procedure_thrombectomy, full_url=thrombectomy_procedure_ref, sections=document_sections_for_procedure( procedure_thrombectomy,include_not_done=True,),)
+            
+            if observation_mtici_ref is not None:
+                diagnostic_report_thrombectomy = build_mechanical_thrombectomy_diagnostic_report(patient_ref=patient_ref,
                                                                                         encounter_ref=encounter_ref,
                                                                                         thrombectomy_procedure_ref=thrombectomy_procedure_ref,
                                                                                         mtici_score_ref=observation_mtici_ref) # Build DiagnosticReport resource for mechanical thrombectomy using patient_ref, encounter_ref and references to thrombectomy procedure and mTICI score, field not required
-            diagnostic_report_thrombectomy_ref = context.add_resource(diagnostic_report_thrombectomy, sections=(DischargeSection.SIGNIFICANT_RESULTS,) )
-            entries.append(BundleEntry(fullUrl=diagnostic_report_thrombectomy_ref, resource=diagnostic_report_thrombectomy, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
+                context.add_resource(diagnostic_report_thrombectomy, sections=(DischargeSection.SIGNIFICANT_RESULTS,) )
+            #entries.append(BundleEntry(fullUrl=diagnostic_report_thrombectomy_ref, resource=diagnostic_report_thrombectomy, request=BundleEntryRequest(method="POST", url="DiagnosticReport")))
         
         ####################### 2.2.4 Arterial occlusion (Observation + DiagnosticReport) ######################################
             
@@ -562,8 +584,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                 condition_ref=condition_stroke_ref,
                                                                                 medication= AnticoagulantReversal.by_id(anticoagulant_reversal), # Use a specific medication for thrombolysis reversal, can be extended to use different medications if needed
                                                                                 medication_timestamp=anticoagulant_reversal_timestamp) # Pass anticoagulant reversal timestamp to build_medicationAdministration
-                        entries.append(BundleEntry(fullUrl=get_uuid(), resource=medicationAdministration_anticoagulant_reversal, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
-
+                        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=medicationAdministration_anticoagulant_reversal, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
+                        context.add_resource(medicationAdministration_anticoagulant_reversal, sections=(DischargeSection.PHARMACOTHERAPY,) )
                     no_anticoagulant_reversal_reason = safe_get(raw, "no_anticoagulant_reversal_reason", required=False) # Check if no anticoagulant reversal reason is present in raw data, not required
                     if no_anticoagulant_reversal_reason is not None:
                         final_timestamp = None
@@ -580,8 +602,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                 final_reference_time=final_timestamp, # Use final timestamp as final reference time for no anticoagulant reversal reason, can be adjusted as needed
                                                                                 no_medication_reason=NoAnticoagulantReversalReason.by_id(no_anticoagulant_reversal_reason)) # Pass no anticoagulant reversal reason to build_medicationAdministration
 
-                        entries.append(BundleEntry(fullUrl=get_uuid(), resource=medicationAdministration_anticoagulant_reversal_no_reason, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
-
+                        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=medicationAdministration_anticoagulant_reversal_no_reason, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
+                        context.add_resource(medicationAdministration_anticoagulant_reversal_no_reason, )
 
             ich_treatment_any = safe_get_bool(raw, "ich_treatment_any", required=False) # Check if any treatment for intracerebral hemorrhage was given, not required
             if ich_treatment_any is not None:
@@ -603,9 +625,11 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                     for done,proc in procedure_ich_treatment:
                         if done is True and safe_get_bool(raw, "ich_treatment_hematoma_evacuation", required=False):
                             ich_treatment_hematoma_ref = get_uuid()
-                            entries.append(BundleEntry(fullUrl=ich_treatment_hematoma_ref, resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
+                            context.add_resource(proc, full_url=ich_treatment_hematoma_ref, sections=document_sections_for_procedure(proc, include_not_done = False))
+                            #entries.append(BundleEntry(fullUrl=ich_treatment_hematoma_ref, resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
                         else:
-                            entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
+                            context.add_resource(proc, sections=document_sections_for_procedure(proc, include_not_done = False))
+                            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
             
             ich_score = safe_get(raw, "ich_score", required=False) # Check if intracerebral hemorrhage score is present in raw data, not required
             if ich_score is not None:
@@ -637,8 +661,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                         sah_treatment_drainage=safe_get_bool(raw, "sah_treatment_drainage", required=False),
                                                                         sah_treatment_other=safe_get_bool(raw, "sah_treatment_other", required=False)) # Build Procedure resource for subarachnoid hemorrhage treatment using patient_ref, encounter_ref and stroke diagnosis reference, field not required
                 for proc in procedure_sah_treatment:
-                    
-                    entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
+                    context.add_resource(proc, sections=document_sections_for_procedure(proc, include_not_done = False))
+                    #entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
 
             nimodipine_administration = safe_get_bool(raw, "nimodipine", required= False) # Check if nimodipine administration is present in raw data, not required
             nimodipine_administration_timing = safe_get(raw, "nimodipine_timing", required=False) # Check if nimodipine administration timestamp is present in raw data, not required
@@ -657,7 +681,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                                     medication_range_timing=Nimodipinetiming.by_id(nimodipine_administration_timing),
                                                                                                     initial_reference_time=str(hospital_timestamp),
                                                                                                     final_reference_time=final_timestamp) # Pass nimodipine administration timestamp to build_medicationAdministration
-                entries.append(BundleEntry(fullUrl=get_uuid(), resource=medicationAdministration_nimodipine, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
+                context.add_resource(medicationAdministration_nimodipine, sections=(DischargeSection.PHARMACOTHERAPY,) )
+                #entries.append(BundleEntry(fullUrl=get_uuid(), resource=medicationAdministration_nimodipine, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
         ############################ 2.2.5 Cerebral venous thrombosis (Condition) ######################################
         if stroke_type_enum == StrokeType.CEREBRAL_VENOUS_THROMBOSIS:
             cvt_treatment_any = safe_get_bool(raw, "cvt_treatment_any", required=False) # Check if any treatment for cerebral venous thrombosis was given, not required
@@ -672,8 +697,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                         cvt_treatment_thrombectomy=safe_get_bool(raw, "cvt_treatment_thrombectomy", required=False),
                 )
                 for proc in procedure_cvt_treatment:
-                    entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
-
+                    #entries.append(BundleEntry(fullUrl=get_uuid(), resource=proc, request=BundleEntryRequest(method="POST", url="Procedure")))
+                    context.add_resource(proc, sections=document_sections_for_procedure(proc, include_not_done = False))
         ############################# 2.2.6 Stroke Mimics (Condition) ######################################
         if stroke_type_enum == StrokeType.STROKE_MIMICS:
         ########################### 2.2.6.1 Thrombolysis (Procedure) ######################################
