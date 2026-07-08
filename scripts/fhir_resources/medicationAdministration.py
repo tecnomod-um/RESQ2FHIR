@@ -1,7 +1,7 @@
 
 
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from fhir.resources.reference import Reference
 from fhir.resources.medicationadministration import MedicationAdministration, MedicationAdministrationDosage
@@ -13,9 +13,7 @@ from fhir.resources.meta import Meta
 from fhir.resources.coding import Coding
 from fhir.resources.timing import Timing
 from fhir.resources.period import Period
-from pydantic import InstanceOf
-
-from scripts.enum_models import InsulinOnHyperglycemiaTiming, IvtDrug, Medications, Nimodipinetiming, NoAnticoagulantReason, NotMedicationReason, ParacetamolOnFeverTiming, PostAcuteCare, UnitofMeasurement
+from scripts.enum_models import AnticoagulantReversal, InsulinOnHyperglycemiaTiming, IvtDrug, Medications, Nimodipinetiming, NoAnticoagulantReversalReason, NotMedicationReason, ParacetamolOnFeverTiming, PostAcuteCare, UnitofMeasurement
 from scripts.utils import parse_datetime
 
 
@@ -41,30 +39,6 @@ def _relative_occurrence_timing(relative_timing) -> Timing:
     )]))
 
 
-def build_ivt_medicationAdministration(ivt_drug_dose,ivt_drug, patient_ref, encounter_ref):
-    """
-    Build a FHIR MedicationAdministration resource for IVT administration.
-    
-    Args:
-        ivt_drug: The drug administered 
-        ivt_drug_dose: The dose administered (string)
-        patient_ref: Reference to the Patient resource
-        encounter_ref: Reference to the Encounter resource
-    Returns:
-        MedicationAdministration resource
-    """
-
-    medicationAdministration = MedicationAdministration(
-        status="completed",
-        subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref),
-        medication = CodeableReference(concept=CodeableConcept(coding=[Medications.by_id(ivt_drug).to_coding()]))
-    )
-    
-    dosage = MedicationAdministrationDosage(dose=Quantity(value=Decimal(ivt_drug_dose), unit=UnitofMeasurement.MG.display, system=UnitofMeasurement.MG.system, code=UnitofMeasurement.MG.code))
-    medicationAdministration.dosage = dosage
-
-    return medicationAdministration
 
 def build_medicationAdministration(patient_ref: str, encounter_ref: str, medication: Medications | IvtDrug | str, medication_timestamp: str | None = None, condition_ref: str | None = None, procedure_ref: str | None = None, observation_ref: str | None = None, dose: int | None = None, medication_post_acute: bool | None = None, medication_range_timing: ParacetamolOnFeverTiming | None = None, no_medication_reason: NotMedicationReason | None = None, reference_time: str | None = None) -> MedicationAdministration:
     """
@@ -190,7 +164,7 @@ def build_medicationAdministration_paracetamol_on_fever(patient_ref:str, encount
         status="completed",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/paracetamol-on-fever-medicationAdministration-profile"]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/paracetamol-on-fever-medication-administration-profile"]),
         medication = CodeableReference(concept=CodeableConcept(coding=[Medications.PARACETAMOL.to_coding()])),
         occurencePeriod=period
         )
@@ -205,31 +179,7 @@ def build_medicationAdministration_paracetamol_on_fever(patient_ref:str, encount
     return medicationAdministration
 
 
-def build_no_anticoagulant_reversal_medicationAdministration(patient_ref:str, encounter_ref:str, no_anticoagulant_reversal_reason:NoAnticoagulantReason) -> MedicationAdministration:
-    """
-    Build a FHIR MedicationAdministration resource for no anticoagulant reversal administration.
-    
-    Args:
-        patient_ref: Reference to the Patient resource
-        encounter_ref: Reference to the Encounter resource
-        no_anticoagulant_reversal_reason: The reason for no anticoagulant reversal administration
-    Returns:
-
-        MedicationAdministration resource for no anticoagulant reversal administration
-    """
-    medicationAdministration = MedicationAdministration(
-        status="not-done",
-        subject=Reference(reference=patient_ref),
-        encounter=Reference(reference=encounter_ref),
-        medication=CodeableReference(concept=CodeableConcept(coding=[Medications.ANTICOAGULANT_REVERSAL.to_coding()]))
-        )
-    
-    
-    medicationAdministration.statusReason = [CodeableConcept(coding=[no_anticoagulant_reversal_reason.to_coding()])]
-    return medicationAdministration
-
-
-def build_insulin_on_hyperglycemia(patient_ref:str, encounter_ref:str, observation_ref:str, reference_time: str, insulin_timing: InsulinOnHyperglycemiaTiming) -> MedicationAdministration:
+def build_insulin_on_hyperglycemia(patient_ref:str, encounter_ref:str, observation_ref:str, initial_reference_time: str, insulin_timing: InsulinOnHyperglycemiaTiming, final_reference_time: str | None = None) -> MedicationAdministration:
     """
     Build a FHIR MedicationAdministration resource for insulin administration on hyperglycemia.
     
@@ -237,24 +187,30 @@ def build_insulin_on_hyperglycemia(patient_ref:str, encounter_ref:str, observati
         patient_ref: Reference to the Patient resource
         encounter_ref: Reference to the Encounter resource
         observation_ref: Reference to the hyperglycemia observation resource
-        reference_time: The reference time for the insulin administration
+        initial_reference_time: The initial reference time for the insulin administration
+        final_reference_time: The final reference time for the insulin administration
         insulin_timing: The timing of the insulin administration  (within 1 hour or after 1 hour)
     Returns:
         MedicationAdministration resource for insulin administration on hyperglycemia
     """
-    ref_timestamp = parse_datetime(reference_time)
-    if ref_timestamp is not None:
-        timestamp_offsetted = ref_timestamp + timedelta(hours=1)
+    if initial_reference_time is not None:
+        initial_timestamp = parse_datetime(initial_reference_time)
+        timestamp_offsetted = initial_timestamp + timedelta(hours=1)
         if insulin_timing == InsulinOnHyperglycemiaTiming.WITHIN_1_HOUR:
-            period = Period(start=ref_timestamp, end=timestamp_offsetted)
+            period = Period(start=initial_timestamp, end=timestamp_offsetted)
+        elif insulin_timing == InsulinOnHyperglycemiaTiming.AFTER_1_HOUR:
+            if final_reference_time is not None:
+                final_ref_timestamp = parse_datetime(final_reference_time)
+                period = Period(start=timestamp_offsetted, end=final_ref_timestamp)
         else:
             period = Period(start=timestamp_offsetted)
+
     medicationAdministration = MedicationAdministration(
         status="completed",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=observation_ref))],
-        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/insulin-on-hyperglycemia-medicationAdministration-profile"]),
+        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/insulin-on-hyperglycemia-medication-administration-profile"]),
         medication = CodeableReference(concept=CodeableConcept(coding=[Medications.INSULIN.to_coding()])),
         occurencePeriod=period,
         )
@@ -268,7 +224,7 @@ def build_insulin_on_hyperglycemia(patient_ref:str, encounter_ref:str, observati
     return medicationAdministration
 
 
-def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str, reference_time: str, condition_ref: str | None = None, procedure_ref:str | None = None, medication_range_timing: Nimodipinetiming | None = None) -> MedicationAdministration:
+def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str, initial_reference_time: str | None = None, final_reference_time: str | None = None, condition_ref: str | None = None, procedure_ref:str | None = None, medication_range_timing: Nimodipinetiming | None = None) -> MedicationAdministration:
     """
     Build a FHIR MedicationAdministration resource for nimodipine administration.
     
@@ -277,17 +233,26 @@ def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str
         encounter_ref: Reference to the Encounter resource
         condition_ref: Reference to the Condition resource, if applicable
         procedure_ref: Reference to the Procedure resource, if applicable
-        reference_time: The reference time for the nimodipine administration
+        initial_reference_time: The initial reference time for the nimodipine administration
+        final_reference_time: The final reference time for the nimodipine administration
         medication_range_timing: The timing information for the nimodipine administration, if applicable
     Returns:
         MedicationAdministration resource for nimodipine administration
     """
 
-    ref_timestamp = parse_datetime(reference_time)
-    if ref_timestamp is not None:
-        timestamp_offsetted = ref_timestamp + timedelta(hours=24)
+    
+    if initial_reference_time is not None:
+        initial_ref_timestamp = parse_datetime(initial_reference_time)
+        timestamp_offsetted = initial_ref_timestamp + timedelta(hours=24)
         if medication_range_timing == Nimodipinetiming.WITHIN_24_HOURS:
-            period = Period(start=ref_timestamp, end=timestamp_offsetted)
+            period = Period(start=initial_ref_timestamp, end=timestamp_offsetted)
+        if medication_range_timing == Nimodipinetiming.AFTER_24_HOURS:
+            if final_reference_time is not None:
+                final_ref_timestamp = parse_datetime(final_reference_time)
+                period = Period(start=timestamp_offsetted, end=final_ref_timestamp)
+        elif final_reference_time is not None:
+            final_ref_timestamp = parse_datetime(final_reference_time)
+            period = Period(start=timestamp_offsetted, end=final_ref_timestamp)
         else:
             period = Period(start=timestamp_offsetted)
 
@@ -295,7 +260,7 @@ def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str
         status="completed",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/nimodipine-medicationAdministration-profile"]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/nimodipine-medication-administration-profile"]),
         medication=CodeableReference(concept=CodeableConcept(coding=[Medications.NIMODIPINE.to_coding()])),
         occurencePeriod=period
         )
@@ -313,4 +278,52 @@ def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str
     if medication_range_timing is not None:
         extension_list.append(Extension(url = "http://tecnomod-um-org/StructureDefinition/assessment-timing-ext", valueCodeableConcept=CodeableConcept(coding=[medication_range_timing.to_coding()])))
         medicationAdministration.extension = extension_list
+    
+    return medicationAdministration
+
+
+def build_medicationAdministration_anticoagulantReversal(patient_ref:str, encounter_ref:str, condition_ref: str | None, medication: AnticoagulantReversal, medication_timestamp:str | None = None, initial_reference_time: str | None = None, final_reference_time: str | None = None,no_medication_reason: NoAnticoagulantReversalReason | None = None) -> MedicationAdministration:
+    """
+    Build a FHIR MedicationAdministration resource for anticoagulant reversal medication administration.
+    
+    Args:
+        patient_ref: Reference to the Patient resource
+        encounter_ref: Reference to the Encounter resource
+        condition_ref: Reference to the Condition resource
+        medication: The anticoagulant reversal medication administered
+        medication_timestamp: The timestamp of the medication administration
+        no_medication_reason: The reason for no medication administration, if applicable
+    Returns:
+        MedicationAdministration resource for anticoagulant reversal medication administration
+    """
+
+    occurrence = {}
+    if medication_timestamp is not None:
+        occurrence["occurenceDateTime"] = parse_datetime(medication_timestamp)
+    elif initial_reference_time is not None:
+        start = parse_datetime(initial_reference_time)
+        end = parse_datetime(final_reference_time) if final_reference_time is not None else None
+        occurrence["occurencePeriod"] = Period(start=start, end=end)
+    else:
+        raise ValueError("Anticoagulant reversal requires a medication timestamp or reference period.")
+
+    medicationAdministration = MedicationAdministration(
+        status="completed",
+        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/anticoagulant-reversal-medication-administration-profile"]),
+        subject=Reference(reference=patient_ref),
+        encounter=Reference(reference=encounter_ref),
+        medication=CodeableReference(concept=CodeableConcept(coding=[medication.to_coding()])),
+        **occurrence,
+        )
+    
+    reason_list = []
+    if condition_ref is not None:
+        reason_list.append(CodeableReference(reference=Reference(reference=condition_ref)))
+        medicationAdministration.reason = reason_list
+
+    if no_medication_reason is not None:
+        medicationAdministration.status = "not-done"
+        medicationAdministration.statusReason = [CodeableConcept(coding=[no_medication_reason.to_coding()])]
+        medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[Medications.ANTICOAGULANT_REVERSAL.to_coding()]))
+
     return medicationAdministration

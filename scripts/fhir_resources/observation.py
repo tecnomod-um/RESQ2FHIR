@@ -12,11 +12,11 @@ from fhir.resources.range import Range
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.extension import Extension
 from scripts.enum_models import (
-    AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ManagementAppointment, NoAnticoagulantReason, NotMedicationReason, ObservationMethods, ProcedureNotDoneReason, RiskFactor, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
-    AssessmentContext, FunctionalScore, MTiciScore, SpecificFinding, UnitofMeasurement, TimingMetricCodes
+    AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ManagementAppointment, NotMedicationReason, ObservationMethods, ProcedureNotDoneReason, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
+    AssessmentContext, FunctionalScore, MTiciScore, SpecificFinding, UnitofMeasurement, TimingMetricCodes, TiaSymptomDuration
 )
 from fhir.resources.meta import Meta 
-from scripts.utils import safe_isna, parse_datetime
+from scripts.utils import TransformError, parse_datetime
 
 
 def build_observation_vital_signs(systolic_pressure: int | None, diastolic_pressure: int | None, patient_ref: str, encounter_ref: str, timing: AssessmentContext | None) -> Observation:
@@ -162,11 +162,11 @@ def build_observation_nihss(patient_ref: str, encounter_ref: str, value_nihss: i
     """
     if admission_nihss is True:
         assesment_value = AssessmentContext.ADMISSION.to_coding()
-        value_nihss = admission_nihss
 
     elif discharge_nihss is True:
         assesment_value = AssessmentContext.DISCHARGE.to_coding()
-        value_nihss = discharge_nihss
+    else:
+        raise TransformError("NIHSS observation requires admission or discharge context.")
     
     extensions = Extension(
         url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
@@ -258,11 +258,13 @@ def build_observation_blood_volume(patient_ref: str, encounter_ref: str, bleedin
     code_category = CodeableConcept(coding=[coding_category])
     observation.category = [code_category]
     extension_list = []
-    acute_extension = Extension(
-            url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
-            valueBoolean=post_acute_care)
-    
-    extension_list.append(acute_extension)
+    if post_acute_care is not None:
+        acute_extension = Extension(
+                url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+                valueBoolean=post_acute_care
+            )
+        
+        extension_list.append(acute_extension)
 
 
     value_quantity = Quantity(
@@ -305,13 +307,15 @@ def build_observation_carotid_stenosis(patient_ref: str, encounter_ref: str, car
     obs.category = [CodeableConcept(coding=[coding_category])]
 
 
-    if carotid_stenosis is not None:
-        if carotid_stenosis is False:
-            obs.valueBoolean = False
+    if carotid_stenosis is False:
+        obs.valueBoolean = False
+    elif carotid_stenosis is True:
+        if carotid_stenosis_level is not None:
+            obs.valueCodeableConcept = CodeableConcept(
+                coding=[carotid_stenosis_level.to_coding()]
+            )
         else:
-            if carotid_stenosis_level is not None:
-                obs.valueCodeableConcept = CodeableConcept(coding=[carotid_stenosis_level.to_coding()])
-
+            obs.valueBoolean = True
 
     return obs
 
@@ -367,7 +371,7 @@ def build_observation_Af_or_F(patient_ref: str, encounter_ref: str, atrial_fibri
  
 
     observation = Observation(
-        code=CodeableConcept(coding=[RiskFactor.AtrialFibrillation.to_coding()]),
+        code=CodeableConcept(coding=[SpecificFinding.ATRIAL_FIBRILLATION_FLUTTER.to_coding()]),
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref)
@@ -1512,7 +1516,7 @@ def build_observation_hunt_hess_score(patient_ref: str, encounter_ref: str,hunt_
     return observation
 
 
-def build_tia_clinical_symptomps_observation(patient_ref: str, encounter_ref: str, tia_symptom: TiaClinicalSymptoms, tia_duration: str | None ) -> Observation:
+def build_tia_clinical_symptomps_observation(patient_ref: str, encounter_ref: str, tia_symptom: TiaClinicalSymptoms, tia_duration: TiaSymptomDuration | None) -> Observation:
     """
     Build a FHIR Observation resource for TIA (Transient Ischemic Attack) clinical symptoms.
     
@@ -1540,11 +1544,11 @@ def build_tia_clinical_symptomps_observation(patient_ref: str, encounter_ref: st
     category_code = CodeableConcept(coding=[category_coding])
     observation.category = [category_code]
 
-    if tia_duration == "<10 minutes":
+    if tia_duration == TiaSymptomDuration.LT_10_MINUTES:
         observation.valueQuantity = Quantity(value=Decimal(10),comparator="<", unit=UnitofMeasurement.MINUTE.display, system=UnitofMeasurement.MINUTE.system, code=UnitofMeasurement.MINUTE.code)
-    elif tia_duration == "10-59 minutes":
+    elif tia_duration == TiaSymptomDuration.BETWEEN_10_AND_60_MINUTES:
         observation.valueRange = Range(low=Quantity(value=Decimal(10), unit=UnitofMeasurement.MINUTE.display, system=UnitofMeasurement.MINUTE.system, code=UnitofMeasurement.MINUTE.code), high=Quantity(value=Decimal(59), unit=UnitofMeasurement.MINUTE.display, system=UnitofMeasurement.MINUTE.system, code=UnitofMeasurement.MINUTE.code))
-    elif tia_duration == ">=60 minutes":
+    elif tia_duration == TiaSymptomDuration.GT_60_MINUTES:
         observation.valueQuantity = Quantity(value=Decimal(60),comparator=">=", unit=UnitofMeasurement.MINUTE.display, system=UnitofMeasurement.MINUTE.system, code=UnitofMeasurement.MINUTE.code)
 
     #observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/tia-clinical-symptoms-observation-profile"])
@@ -1646,7 +1650,13 @@ def build_observation_finding_post_ivt_mt(patient_ref: str, encounter_ref: str,p
         observation_hemorrhagic_transformation.valueBoolean = post_treatment_hemorrhagic_transformation
         if post_treatment_hemorrhagic_transformation:
             if hemorrhagic_transformation_type is not None:
-                observation_hemorrhagic_transformation.component = [ObservationComponent(code=CodeableConcept(coding=[hemorrhagic_transformation_type.to_coding()]), valueBoolean=True)]
+                observation_hemorrhagic_transformation.valueCodeableConcept = CodeableConcept(
+                    coding=[hemorrhagic_transformation_type.to_coding()]
+                )
+            else:
+                observation_hemorrhagic_transformation.valueBoolean = True
+        else:
+            observation_hemorrhagic_transformation.valueBoolean = False
     return [observation_brain_infarct, observation_remote_bleeding, observation_hemorrhagic_transformation]
 
 

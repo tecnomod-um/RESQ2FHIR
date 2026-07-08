@@ -98,17 +98,21 @@ def build_stroke_encounter_profile(
     
 
 
+    if discharge_facility_type is not None:
+        extension_list.append(Extension(
+            url="http://tecnomod-um.org/StructureDefinition/discharge-facility-type-ext",
+            valueCodeableConcept=CodeableConcept(
+                coding=[discharge_facility_type.to_coding()]
+            )
+        ))
+
     if discharge_facility_department is not None:
         extension_list.append(Extension(
             url="http://tecnomod-um.org/StructureDefinition/discharge-department-service-ext",
-            valueCodeableConcept=CodeableConcept(coding=[discharge_facility_department.to_coding()])
+            valueCodeableConcept=CodeableConcept(
+                coding=[discharge_facility_department.to_coding()]
+            )
         ))
-    elif discharge_facility_type is not None:
-        extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/discharge-department-service-ext",
-            valueCodeableConcept=CodeableConcept(coding=[discharge_facility_type.to_coding()])
-        ))
-
 
     if post_acute_care:
         extension_list.append(Extension(

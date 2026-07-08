@@ -9,7 +9,7 @@ from fhir.resources.reference import Reference
 from fhir.resources.coding import Coding
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.extension import Extension
-from scripts.enum_models import BleedingReason, BodySites, MimicsDiagnosis, PostStrokeComplications, RiskFactor, SpecificFinding, StrokeEtiology, StrokeEtiology, StrokeType, ClinicalStatusCodes
+from scripts.enum_models import BleedingReason, BodySites, MimicsDiagnosis, PostStrokeComplications, RiskFactor, SpecificFinding, StrokeEtiology, StrokeType, ClinicalStatusCodes
 from scripts.utils import parse_datetime
 
 
@@ -38,6 +38,11 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
         subject=Reference(reference=patient_ref),
         clinicalStatus=CodeableConcept(),
         encounter=Reference(reference=encounter_ref),
+        category = [CodeableConcept(coding=[Coding(
+                    system="http://terminology.hl7.org/CodeSystem/condition-category",
+                    code="encounter-diagnosis",
+                    display="Encounter Diagnosis"
+                )])]
     )
 
     # code (Stroke type)
@@ -71,16 +76,50 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
         display="Active"
     )])
 
-    if stroke_type != StrokeType.UNDETERMINED:
+    if stroke_type == StrokeType.UNDETERMINED:
+        condition.verificationStatus = CodeableConcept(coding=[Coding(
+            system="http://terminology.hl7.org/CodeSystem/condition-ver-status",
+            code="unconfirmed",
+            display="Unconfirmed"
+        )])
+    else:
         condition.verificationStatus = CodeableConcept(coding=[Coding(
             system="http://terminology.hl7.org/CodeSystem/condition-ver-status",
             code="confirmed",
             display="Confirmed"
-        )]) 
+        )])
 
+    extension_list = []
+    if stroke_type == StrokeType.ISCHEMIC:
+        if stroke_etiology_known is True and stroke_etiology is not None:
+            extension_list.append(Extension(
+            url="http://tecnomod-um.org/StructureDefinition/ischemic-stroke-etiology-ext",
+            valueCodeableConcept=CodeableConcept(coding=[stroke_etiology.to_coding()])
+        ))
+        else:
+            extension_list.append(Extension(
+            url="http://tecnomod-um.org/StructureDefinition/ischemic-stroke-etiology-ext",
+            valueCodeableConcept=CodeableConcept(coding=[StrokeEtiology.UNDETERMINED.to_coding()])
+        ))
+
+    if stroke_type in [
+    StrokeType.INTRACEREBRAL_HEMORRHAGE,
+    StrokeType.SUBARACHNOID_HEMORRHAGE
+    ]:
+        if bleeding_reason_found is True and bleeding_reasons:
+            for bleeding_reason in bleeding_reasons:
+                extension_list.append(Extension(
+                    url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
+                    valueCodeableConcept=CodeableConcept(coding=[bleeding_reason.to_coding()])
+                ))
+        else:
+            extension_list.append(Extension(
+            url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
+            valueCodeableConcept=CodeableConcept(coding=[BleedingReason.UNDETERMINED.to_coding()])
+            ))
     # Profile + optional extensions
     condition.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-diagnosis-condition-profile"])
-    extension_list = []
+
 
     
     
@@ -93,11 +132,7 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
                 url="http://tecnomod-um.org/StructureDefinition/ischemic-stroke-etiology-ext",
                 valueCodeableConcept=CodeableConcept(coding=[stroke_etiology.to_coding()])
             ))
-    else:
-        extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/ischemic-stroke-etiology-known-ext",
-            valueCodeableConcept=CodeableConcept(coding=[StrokeEtiology.UNDETERMINED.to_coding()])
-        ))
+
     
     if bleeding_reason_found is True:
         if bleeding_reasons:
@@ -106,11 +141,6 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
                     url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
                     valueCodeableConcept=CodeableConcept(coding=[bleeding_reason.to_coding()])
                 ))
-        else:
-            extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-found-ext",
-                valueCodeableConcept=CodeableConcept(coding=[BleedingReason.UNDETERMINED.to_coding()])
-            ))
 
 
     
