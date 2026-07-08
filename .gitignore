@@ -5,3 +5,4 @@ scripts/fhir_resources/__pycache__/
 .vscode/
 data/
 scripts/normalization/__pycache__/
+fhir-validator/target/fhir-r5-validator-api.jar
