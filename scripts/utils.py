@@ -3,7 +3,7 @@ Utility functions for FHIR transformation.
 Contains shared helper functions used across multiple modules.
 """
 
-from datetime import datetime
+from datetime import datetime, time
 from zoneinfo import ZoneInfo
 import uuid
 import pandas as pd
@@ -29,10 +29,10 @@ def safe_get_bool(
     key: str,
     *,
     required: bool = False,
-    default: bool = False,
+    default: bool | None = None,
     ctx: str = "",
-) -> bool:
-    """Get a boolean value from raw, accepting common string and numeric forms."""
+) -> bool | None:
+    """Return a tri-state boolean (``True``, ``False`` or unknown/``None``)."""
     value = safe_get(raw, key, required=required, ctx=ctx)
     if value is None:
         return default
@@ -86,23 +86,40 @@ def parse_datetime(raw: str, *, tz: str = "Europe/Bratislava") -> datetime:
     """Parse datetime with informative error."""
     if raw is None or str(raw).strip() == "":
         raise TransformError("Datetime value is empty.")
+
     raw = str(raw).strip()
-    tried = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"]
+    local_tz = ZoneInfo(tz)
+    utc_tz = ZoneInfo("UTC")
+
+    tried = [
+        ("%Y-%m-%d %H:%M:%S", False),
+        ("%Y-%m-%dT%H:%M:%S", False),
+        ("%Y-%m-%d", True),
+    ]
+
     last_err = None
-    for fmt in tried:
+
+    for fmt, is_date_only in tried:
         try:
             dt = datetime.strptime(raw, fmt)
-            # If only date, assume midnight
-            if fmt == "%Y-%m-%d":
-                dt = datetime.combine(dt.date(), datetime.min.time())
-                dt = dt.replace(tzinfo=ZoneInfo(tz))
-            return dt.astimezone(ZoneInfo("UTC"))
+
+            if is_date_only:
+                # Si solo viene fecha, usar la última hora posible del día
+                dt = datetime.combine(dt.date(), time.max)
+
+            # Interpretar el datetime como hora local
+            dt = dt.replace(tzinfo=local_tz)
+
+            # Convertir a UTC
+            return dt.astimezone(utc_tz)
+
         except Exception as e:
             last_err = e
-    raise TransformError(
-        f"Invalid datetime '{raw}'. Expected one of formats {tried}. Underlying error: {last_err}"
-    )
 
+    raise TransformError(
+        f"Invalid datetime '{raw}'. Expected one of formats {[fmt for fmt, _ in tried]}. "
+        f"Underlying error: {last_err}"
+    )
 
 def get_uuid() -> str:
     """Generate a UUID in FHIR format."""

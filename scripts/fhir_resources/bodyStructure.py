@@ -20,9 +20,7 @@ def build_bodyStructure(patient_ref: str, laterality: Laterality, structure: Bod
     Returns:
         BodyStructure resource for the specified anatomical structure
     """
-    body_structure = BodyStructure(
-        patient = Reference(reference=patient_ref)
-    )
+    included_structure = None
     if laterality is not None and structure is not None:
         included_structure = BodyStructureIncludedStructure(
             laterality = CodeableConcept(coding=[laterality.to_coding()]),
@@ -33,6 +31,7 @@ def build_bodyStructure(patient_ref: str, laterality: Laterality, structure: Bod
             structure = CodeableConcept(coding=[structure.to_coding()])
         )
         
-    body_structure.includedStructure = [included_structure]
-
-    return body_structure
+    return BodyStructure(
+        patient=Reference(reference=patient_ref),
+        includedStructure=[included_structure],
+    )

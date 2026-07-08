@@ -2,7 +2,6 @@
 Procedure resource builders for FHIR transformation.
 """
 
-from decimal import Decimal
 
 from decimal import Decimal
 
@@ -17,13 +16,13 @@ from fhir.resources.extension import Extension
 from fhir.resources.period import Period
 from fhir.resources.meta import Meta
 from scripts.enum_models import (
-    AssessmentContext, CarotidEndarterectomyTiming, IchTreatment, ImagingDone, ImagingType, NoThrombectomyReason, NoThrombolysisReason, PostAcuteCare, PostNeurosurgeryImaging, PostRecanalizationImaging, PostStrokeProcedures, ProcedureNotDoneReason,SwallowingScreeningType,
+    AssessmentContext, CarotidEndarterectomyTiming, IchTreatment, ImagingDone, ImagingType, NoThrombectomyReason, NoThrombolysisReason, PostAcuteCare, PostNeurosurgeryImaging, PostRecanalizationImaging, PostStrokeProcedures, ProcedureNotDoneReason, SwallowingScreeningDone,SwallowingScreeningType,
     SwallowingScreeningTiming, PerforationProcedures, ThrombectomyComplications, VteProcedures
 )
-from scripts.utils import get_uuid, parse_datetime
+from scripts.utils import parse_datetime
 
 
-def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_report_ref: str, imaging_done: ImagingDone | None, imaging_type: ImagingType | None, post_acute_care: bool, imaging_timestamp: str | None) -> Procedure:
+def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_report_ref: str | None, imaging_done: ImagingDone | None, imaging_type: ImagingType | None, post_acute_care: bool, imaging_timestamp: str | None) -> Procedure:
     """
     Build a FHIR Procedure resource for imaging.
     
@@ -44,9 +43,10 @@ def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_rep
     procedure_final = Procedure(
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        report=[Reference(reference=diagnostic_report_ref)],
         status="completed"
     )
+    if diagnostic_report_ref:
+        procedure_final.report = [Reference(reference=diagnostic_report_ref)]
     
     if imaging_done is not None:
         status_reason = None
@@ -198,7 +198,7 @@ def build_endarterectomy_procedure(patient_ref: str, encounter_ref: str, diagnos
 
     return procedure
 
-def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, practitioner_role_ref: str | None, swallowing_screening_done: bool | None = False, swallowing_screening_type: SwallowingScreeningType | None = None, swallowing_screening_timing: SwallowingScreeningTiming | None = None) -> Procedure:
+def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, practitioner_role_ref: str | None, swallowing_screening_done: SwallowingScreeningDone | None = None, swallowing_screening_type: SwallowingScreeningType | None = None, swallowing_screening_timing: SwallowingScreeningTiming | None = None) -> Procedure:
     """
     Build a FHIR Procedure resource for swallowing screening.
     
@@ -221,7 +221,7 @@ def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, p
     )
     procedure.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-swallow-procedure-profile"])
     
-    if swallowing_screening_done is True:
+    if swallowing_screening_done is SwallowingScreeningDone.YES:
         if swallowing_screening_type is not None:
         #     swallowing_type_coding = SwallowingScreeningType.OTHER.to_coding()
         # else:
@@ -231,9 +231,13 @@ def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, p
         if practitioner_role_ref is not None:
             procedure.performer = [ProcedurePerformer(actor=Reference(reference=practitioner_role_ref))]
         procedure.status = "completed"
-    elif swallowing_screening_done is False:
+    elif swallowing_screening_done is SwallowingScreeningDone.NO:
         procedure.status = "not-done"
         status_reason_code = CodeableConcept(coding=[ProcedureNotDoneReason.UNKNOWN.to_coding()])
+        procedure.statusReason = status_reason_code
+    elif swallowing_screening_done is SwallowingScreeningDone.NOT_APPLICABLE:
+        procedure.status = "not-done"
+        status_reason_code = CodeableConcept(coding=[ProcedureNotDoneReason.NOT_APPLICABLE.to_coding()])
         procedure.statusReason = status_reason_code
         return procedure
      
@@ -549,7 +553,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
     return procedure_list
 
 
-def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, condition_ref: str, ich_treatment_any: bool | None = False, ich_treatment_craniectomy: bool | None= False, ich_treatment_stereotactic_aspiration: bool | None = False, ich_treatment_ventricular_drainage: bool | None = False, ich_treatment_hematoma_evacuation: bool | None = False, ich_treatment_open_craniectomy: bool | None = False, ich_treatment_evacuation_timestamp: str | None = None, no_ich_treatment_reason: ProcedureNotDoneReason | None = None) -> list[tuple[bool, Procedure]]:
+def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, condition_ref: str, ich_treatment_any: bool | None = False, ich_treatment_craniectomy: bool | None= False, ich_treatment_stereotactic_aspiration: bool | None = False, ich_treatment_ventricular_drainage: bool | None = False, ich_treatment_hematoma_evacuation: bool | None = False, ich_treatment_open_craniectomy: bool | None = False, ich_treatment_min_invasive: bool | None = False, ich_treatment_evacuation_timestamp: str | None = None, no_ich_treatment_reason: ProcedureNotDoneReason | None = None) -> list[tuple[bool, Procedure]]:
     """
     Build a FHIR Procedure resources for ICH treatment.
     
@@ -562,10 +566,11 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         ich_treatment_ventricular_drainage: Whether ventricular drainage was performed
         ich_treatment_hematoma_evacuation: Whether hematoma evacuation was performed
         ich_treatment_open_craniectomy: Whether open craniectomy was performed
+        ich_treatment_min_invasive: Whether minimally invasive procedure was performed
         ich_treatment_evacuation_timestamp: Timestamp of the ICH evacuation procedure
         no_ich_treatment_reason: Reason for not performing ICH treatment
     Returns:
-        Procedure resources for ICH treatments in the following order: procedure_craniectomy, procedure_stereotactic_aspiration, procedure_ventricular_drainage, procedure_hematoma_evacuation, procedure_open_craniectomy
+        Procedure resources for ICH treatments in the following order: procedure_craniectomy, procedure_stereotactic_aspiration, procedure_ventricular_drainage, procedure_hematoma_evacuation, procedure_open_craniectomy, procedure_min_invasive
     """
     procedure_craniectomy = Procedure(
         status="not-done",
@@ -612,8 +617,16 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         code=CodeableConcept(coding=[IchTreatment.VENTRICULAR_DRAINAGE.to_coding()]),
         meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
-    
 
+    procedure_min_invasive = Procedure(
+        status="not-done",
+        subject=Reference(reference=patient_ref),
+        encounter=Reference(reference=encounter_ref),
+        reason = [CodeableReference(reference=Reference(reference=condition_ref))],
+        code=CodeableConcept(coding=[IchTreatment.MIN_INVASIVE.to_coding()]),
+        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+    )
+    
 
     if ich_treatment_any is False :
         for proc in [procedure_craniectomy, procedure_stereotactic_aspiration, procedure_ventricular_drainage, procedure_hematoma_evacuation, procedure_open_craniectomy]:
@@ -624,47 +637,22 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         return [(False, procedure_craniectomy), (False, procedure_stereotactic_aspiration), (False, procedure_ventricular_drainage), (False, procedure_hematoma_evacuation), (False, procedure_open_craniectomy)]
     
 
-    if ich_treatment_craniectomy is True:
-        
-        if ich_treatment_craniectomy is True:
-            procedure_craniectomy.status = "completed"
-        else:
-            procedure_craniectomy.status = "not-done"
-        if ich_treatment_stereotactic_aspiration is True:
-            procedure_stereotactic_aspiration.status = "completed"
-        else:
-            procedure_stereotactic_aspiration.status = "not-done"
-        if ich_treatment_ventricular_drainage is True:
-            procedure_ventricular_drainage.status = "completed"
-        else:
-            procedure_ventricular_drainage.status = "not-done"
-        if ich_treatment_hematoma_evacuation is True:
-            procedure_hematoma_evacuation.status = "completed"
-        else:
-            procedure_hematoma_evacuation.status = "not-done"
-        if ich_treatment_open_craniectomy is True:
-            procedure_open_craniectomy.status = "completed"
-        else:
-            procedure_open_craniectomy.status = "not-done"
-
-        if ich_treatment_evacuation_timestamp is not None:
-            evacuation_timestamp_dt = parse_datetime(ich_treatment_evacuation_timestamp)
-            if ich_treatment_open_craniectomy:
-                procedure_open_craniectomy.occurrenceDateTime = evacuation_timestamp_dt   
-            if ich_treatment_stereotactic_aspiration:
-                procedure_stereotactic_aspiration.occurrenceDateTime = evacuation_timestamp_dt
-        
-
-#    elif ich_treatment_min_invasive is True:
-#        procedure.code = CodeableConcept(coding=[IchTreatment.STEREOTACTIC_ASPIRATION.to_coding()])
-#        if ich_treatment_evacuation_timestamp is not None:
-#            evacuation_timestamp_dt = parse_datetime(ich_treatment_evacuation_timestamp)
-#            procedure.occurrenceDateTime = evacuation_timestamp_dt
-
-
+    procedures = [
+        (ich_treatment_craniectomy, procedure_craniectomy),
+        (ich_treatment_stereotactic_aspiration, procedure_stereotactic_aspiration),
+        (ich_treatment_ventricular_drainage, procedure_ventricular_drainage),
+        (ich_treatment_hematoma_evacuation, procedure_hematoma_evacuation),
+        (ich_treatment_open_craniectomy, procedure_open_craniectomy),
+        (ich_treatment_min_invasive, procedure_min_invasive),
+    ]
+    for done, procedure in procedures:
+        if done is True:
+            procedure.status = "completed"
+            if ich_treatment_evacuation_timestamp is not None:
+                procedure.occurrenceDateTime = parse_datetime(ich_treatment_evacuation_timestamp)
 
     
-    return [(False, procedure_craniectomy), (False, procedure_stereotactic_aspiration), (False, procedure_ventricular_drainage), (True, procedure_hematoma_evacuation), (False, procedure_open_craniectomy)]
+    return [(False, procedure_craniectomy), (False, procedure_stereotactic_aspiration), (False, procedure_ventricular_drainage), (True, procedure_hematoma_evacuation), (False, procedure_open_craniectomy), (False, procedure_min_invasive)]
 
 
 def build_sah_treatment_procedure(patient_ref: str, encounter_ref: str, condition_ref: str, sah_treatment_any: bool = False, sah_treatment_clipping: bool | None = False, sah_treatment_coiling: bool | None = False, sah_treatment_craniectomy: bool | None = False, sah_treatment_drainage: bool | None = False, sah_treatment_other: bool | None = False) -> list[Procedure]:
