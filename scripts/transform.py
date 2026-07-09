@@ -31,10 +31,18 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # Import FHIR builders
 try:
-    from scripts.data_modeling import transform_to_fhir
+    from scripts.data_modeling import (
+        transform_to_fhir,
+        transform_to_fhir_document,
+        transform_to_fhir_bundles,
+    )
     from scripts.utils import TransformError
 except ModuleNotFoundError:
-    from data_modeling import transform_to_fhir
+    from data_modeling import (
+        transform_to_fhir,
+        transform_to_fhir_document,
+        transform_to_fhir_bundles,
+    )
     from utils import TransformError
 from scripts.logging_config import redirect_prints_to_logging
 
@@ -95,34 +103,101 @@ def row_to_dict(row: pd.Series) -> Dict[str, Any]:
     return result
 
 
-def transform_row_to_bundle(row: pd.Series, row_idx: int) -> Optional[Bundle]:
+def transform_row_to_bundles(
+    row: pd.Series,
+    row_idx: int,
+    bundle_mode: str,
+) -> Optional[dict[str, Bundle]]:
     """
-    Transform a single CSV row into a FHIR Bundle.
-    
-    Returns:
-        Bundle if successful, None if row should be skipped.
+    Transform one CSV row into one or more FHIR Bundles.
+
+    bundle_mode:
+        - transaction: only transaction Bundle
+        - document: only document Bundle
+        - both: transaction + document Bundle
     """
+
     try:
         raw_dict = row_to_dict(row)
-        file_id = str(raw_dict.get("case", f"case_{row_idx}"))
-        
+        file_id = str(
+            raw_dict.get(
+                "case",
+                f"case_{row_idx}",
+            )
+        )
+
         if not file_id or file_id == "None":
-            logger.warning(f"Row {row_idx}: Missing case, skipping")
+            logger.warning(
+                "Row %s: Missing case, skipping",
+                row_idx,
+            )
             return None
-        
-        logger.debug(f"Transforming row {row_idx}: case={file_id}")
-        
-        # Call the main transformation orchestrator
-        bundle = transform_to_fhir(file_id, raw_dict)
-        return bundle
-        
+
+        logger.debug(
+            "Transforming row %s: case=%s",
+            row_idx,
+            file_id,
+        )
+
+        if bundle_mode == "transaction":
+            return {
+                "transaction": transform_to_fhir(
+                    file_id,
+                    raw_dict,
+                )
+            }
+
+        if bundle_mode == "document":
+            return {
+                "document": transform_to_fhir_document(
+                    file_id,
+                    raw_dict,
+                )
+            }
+
+        transaction_bundle, document_bundle = (
+            transform_to_fhir_bundles(
+                file_id,
+                raw_dict,
+            )
+        )
+
+        return {
+            "transaction": transaction_bundle,
+            "document": document_bundle,
+        }
+
     except TransformError as e:
-        logger.error(f"Row {row_idx}: Transformation error: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Row {row_idx}: Unexpected error: {e}", exc_info=True)
+        logger.error(
+            "Row %s: Transformation error: %s",
+            row_idx,
+            e,
+        )
         return None
 
+    except Exception as e:
+        logger.error(
+            "Row %s: Unexpected error: %s",
+            row_idx,
+            e,
+            exc_info=True,
+        )
+        return None
+
+def output_filename_for_bundle(
+    case: str,
+    bundle_kind: str,
+    bundle_mode: str,
+) -> str:
+    """Return the output filename for a generated bundle."""
+
+    if (
+        bundle_mode == "transaction"
+        and bundle_kind == "transaction"
+    ):
+        return f"{case}.json"
+
+    return f"{case}.{bundle_kind}.json"
 
 def bundle_to_json_dict(bundle: Bundle) -> Dict[str, Any]:
     """
@@ -256,7 +331,7 @@ def bundle_to_json_dict(bundle: Bundle) -> Dict[str, Any]:
             raise
 
 
-def process_csv(csv_path: Path, output_dir: Path, verbose: bool = False):
+def process_csv(csv_path: Path,output_dir: Path, verbose: bool = False, bundle_mode: str = "transaction"):    
     """
     Main processing function: read CSV, transform to FHIR Bundles, write JSON files.
     """
@@ -291,50 +366,84 @@ def process_csv(csv_path: Path, output_dir: Path, verbose: bool = False):
     for idx, (_, row) in enumerate(df.iterrows(), start=1):
         logger.debug(f"Processing row {idx}/{total_rows}")
         
-        bundle = transform_row_to_bundle(row, idx)
+        bundles = transform_row_to_bundles(row, idx, bundle_mode = bundle_mode)
         
-        if bundle is None:
+        if bundles is None:
             skipped += 1
             continue
         
         try:
             # Get case for filename
-            case = row.get("case", f"case_{idx}")
-            output_file = output_dir / f"{case}.json"
-            
-            # Serialize bundle
-            bundle_dict = bundle_to_json_dict(bundle)
+            case = row.get(
+                "case",
+                f"case_{idx}",
+            )
 
-            def make_json_safe(obj):
-                """Recursively convert Decimal and numpy types to native Python types."""
-                if isinstance(obj, Decimal):
-                    return float(obj)
-                # datetimes -> ISO strings
-                if isinstance(obj, (dt.datetime, dt.date, dt.time)):
-                    try:
-                        return obj.isoformat()
-                    except Exception:
-                        return str(obj)
-                # numpy scalars
-                if isinstance(obj, (np.integer,)):
-                    return int(obj)
-                if isinstance(obj, (np.floating,)):
-                    return float(obj)
-                if isinstance(obj, (np.bool_,)):
-                    return bool(obj)
-                if isinstance(obj, dict):
-                    return {k: make_json_safe(v) for k, v in obj.items()}
-                if isinstance(obj, list):
-                    return [make_json_safe(v) for v in obj]
-                return obj
+            for bundle_kind, bundle in bundles.items():
+                output_file = output_dir / output_filename_for_bundle(
+                    case=str(case),
+                    bundle_kind=bundle_kind,
+                    bundle_mode=bundle_mode,
+                )
 
-            bundle_safe = make_json_safe(bundle_dict)
+                bundle_dict = bundle_to_json_dict(bundle)
 
-            # Write JSON file
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(bundle_safe, f, ensure_ascii=False, indent=2)
-            
-            logger.info(f"✓ {idx}/{total_rows}: {case} → {output_file.name}")
+                def make_json_safe(obj):
+                    """Recursively convert Decimal and numpy types to native Python types."""
+                    if isinstance(obj, Decimal):
+                        return float(obj)
+
+                    if isinstance(obj, (dt.datetime, dt.date, dt.time)):
+                        try:
+                            return obj.isoformat()
+                        except Exception:
+                            return str(obj)
+
+                    if isinstance(obj, (np.integer,)):
+                        return int(obj)
+
+                    if isinstance(obj, (np.floating,)):
+                        return float(obj)
+
+                    if isinstance(obj, (np.bool_,)):
+                        return bool(obj)
+
+                    if isinstance(obj, dict):
+                        return {
+                            k: make_json_safe(v)
+                            for k, v in obj.items()
+                        }
+
+                    if isinstance(obj, list):
+                        return [
+                            make_json_safe(v)
+                            for v in obj
+                        ]
+
+                    return obj
+
+                bundle_safe = make_json_safe(bundle_dict)
+
+                with open(
+                    output_file,
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(
+                        bundle_safe,
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+
+                logger.info(
+                    "✓ %s/%s: %s → %s",
+                    idx,
+                    total_rows,
+                    case,
+                    output_file.name,
+                )
+
             successful += 1
             
         except Exception as e:
@@ -393,6 +502,20 @@ Examples:
         action="store_true",
         help="Enable verbose (DEBUG) logging"
     )
+    parser.add_argument(
+    "--bundle-mode",
+    choices=[
+        "transaction",
+        "document",
+        "both",
+    ],
+    default="transaction",
+    help=(
+        "Which FHIR Bundle output to generate: "
+        "transaction, document, or both. "
+        "Default: transaction."
+    ),
+)
     
     args = parser.parse_args()
     
@@ -400,7 +523,8 @@ Examples:
         exit_code = process_csv(
             csv_path=args.input,
             output_dir=args.outdir,
-            verbose=args.verbose
+            verbose=args.verbose,
+            bundle_mode=args.bundle_mode,
         )
         sys.exit(exit_code)
     except Exception as e:

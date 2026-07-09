@@ -24,6 +24,9 @@ from scripts.fhir_resources.medicationRequest import build_on_discharge_medicati
 from scripts.helpers import get_before_onset_medications, get_bleeding_reason, get_occlusions_list, get_on_discharge_medications, get_risk_factors, get_stroke_etiology
 from scripts.utils import get_uuid, safe_get, safe_get_bool, ensure_dependency
 from scripts.modeling_context import StrokeCaseContext
+from scripts.discharge_summary.document import (
+    build_discharge_document_bundle,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -433,7 +436,7 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                         if tenecteplase_brand is not None:
                             medication_thrombolysis_resource = build_tenecteplase_brand_medication(TenecteplaseBrand.by_id(tenecteplase_brand))
                             medication_thrombolysis_ref = context.add_resource(medication_thrombolysis_resource)
-                            #medication_thrombolysis_med = medication_thrombolysis_ref
+                            medication_thrombolysis_med = medication_thrombolysis_ref
                             #entries.append(BundleEntry(fullUrl=medication_thrombolysis_ref, resource=medication_thrombolysis_resource, request=BundleEntryRequest(method="POST", url="Medication")))
                     
                     else:
@@ -464,7 +467,7 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                 medication= Medications.ANTICOAGULANT_REVERSAL, # Use a specific medication for thrombolysis reversal, can be extended to use different medications if needed
                                                                                 medication_timestamp=anticoagulant_reversal_timestamp,
                                                                                 dose = None)    # Dose is not applicable for reversal medication, pass None
-                        context.add_resource(medicationAdministration_reversal, full_url=medicationAdministration_reversal_ref, sections=(DischargeSection.PHARMACOTHERAPY,) if medicationAdministration_thrombolysis_reversal.status == "completed" else (), )            else:
+                        context.add_resource(medicationAdministration_reversal, full_url=medicationAdministration_reversal_ref, sections=(DischargeSection.PHARMACOTHERAPY,) if medicationAdministration_thrombolysis_reversal.status == "completed" else (), ) 
                 no_thrombolysis_reason_id = safe_get(raw, "no_thrombolysis_reason", required=False) # Check if no thrombolysis reason is present in raw data, not required
             
             if thrombolysis_done is not None:
@@ -482,7 +485,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
 
         thrombectomy_done = safe_get_bool(raw, "thrombectomy", required=False) # Check if mechanical thrombectomy done boolean is present in raw data, not required
         thrombectomy_procedure_ref = get_uuid()
-
+        procedure_thrombectomy = None
+        observation_mtici_ref = None
         if thrombectomy_done is not None and thrombectomy_done is False:
             no_thrombectomy_reason_id = safe_get(raw, "no_thrombectomy_reason", required=False) # Check if no mechanical thrombectomy reason is present in raw data, not required
             procedure_thrombectomy = build_thrombectomy_procedure(patient_ref=patient_ref,
@@ -493,6 +497,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                 no_thrombectomy_reason_id=NoThrombectomyReason.by_id(no_thrombectomy_reason_id),
                                                                 transfer_timestamp=safe_get(raw, "transfer_timestamp", required=False)) # Build Procedure resource for mechanical thrombectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
             #entries.append(BundleEntry(fullUrl=thrombectomy_procedure_ref, resource=procedure_thrombectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
+        
+        
         elif thrombectomy_done is not None and thrombectomy_done is True:
             groin_puncture_timestamp = safe_get(raw, "puncture_timestamp", required=False) # Check if groin puncture timestamp is present in raw data, not required
             mtici_score = safe_get(raw, "mtici_score", required=False) # Check if mTICI score is present in raw data, not required
@@ -1029,7 +1035,7 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                 physiotherapy=physiotherapy_done) # Build Procedure resource for physiotherapy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
             #entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_physiotherapy, request=BundleEntryRequest(method="POST", url="Procedure")))
             context.add_resource(procedure_physiotherapy, sections=(DischargeSection.PLAN_OF_CARE, ), )
-        occupational_therapy_done = safe_get(raw, "occupational_therapy", required=False) # Check if occupational therapy done boolean is present in raw data, not required
+        occupational_therapy_done = safe_get(raw, "occup_therapy", required=False) # Check if occupational therapy done boolean is present in raw data, not required
         if occupational_therapy_done is not None:
             procedure_occupational_therapy = build_occupational_therapy_procedure(patient_ref=patient_ref,
                                                                 encounter_ref=encounter_ref,
@@ -1363,3 +1369,36 @@ def transform_to_fhir(
     return bundle
 
 
+def transform_to_fhir_document(
+    file_id: str,
+    raw: dict,
+) -> Bundle:
+    context = build_stroke_case_context(
+        file_id=file_id,
+        raw=raw,
+    )
+
+    return build_discharge_document_bundle(
+        context
+    )
+
+
+def transform_to_fhir_bundles(
+    file_id: str,
+    raw: dict,
+) -> tuple[Bundle, Bundle]:
+    context = build_stroke_case_context(
+        file_id=file_id,
+        raw=raw,
+    )
+
+    transaction_bundle = Bundle(
+        type="transaction",
+        entry=context.transaction_entries,
+    )
+
+    document_bundle = build_discharge_document_bundle(
+        context
+    )
+
+    return transaction_bundle, document_bundle
