@@ -176,6 +176,8 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
             "Appointment",
             "CarePlan",
             "ServiceRequest",
+            "Procedure",
+            "Observation"
         }),
     ),
 }
@@ -417,7 +419,7 @@ SECTION_SOURCE_FIELDS: dict[
 
     DischargeSection.PLAN_OF_CARE: (
         "stroke_management_appointment",
-    ) + POST_ACUTE_REHABILITATION_FIELDS,
+    ) + POST_ACUTE_REHABILITATION_FIELDS
 }
 
 HEADER_SOURCE_FIELDS = (

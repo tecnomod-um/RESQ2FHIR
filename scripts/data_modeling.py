@@ -900,7 +900,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                             post_stroke_sepsis=safe_get_bool(raw, "post_stroke_drip_site_sepsis", required=False),
                                                             post_stroke_other=safe_get_bool(raw, "post_stroke_other", required=False))
                 for condition in condition_list:
-                    entries.append(BundleEntry(fullUrl=get_uuid(), resource=condition, request=BundleEntryRequest(method="POST", url="Condition")))
+                    #entries.append(BundleEntry(fullUrl=get_uuid(), resource=condition, request=BundleEntryRequest(method="POST", url="Condition")))
+                    context.add_resource(condition, sections=(DischargeSection.DIAGNOSTIC_SUMMARY, DischargeSection.HOSPITAL_COURSE, ),)
             ############################# 3.6 Thromboembolism intervention (Procedure) ######################################
             thromboembolism_done = safe_get_bool(raw, "thromboembolism_any", required=False) # Check if any thromboembolism intervention was done, not required
             if thromboembolism_done is not None:
@@ -1026,19 +1027,23 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
             procedure_physiotherapy = build_physioterapy_procedure(patient_ref=patient_ref,
                                                                 encounter_ref=encounter_ref,
                                                                 physiotherapy=physiotherapy_done) # Build Procedure resource for physiotherapy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_physiotherapy, request=BundleEntryRequest(method="POST", url="Procedure")))
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_physiotherapy, request=BundleEntryRequest(method="POST", url="Procedure")))
+            context.add_resource(procedure_physiotherapy, sections=(DischargeSection.PLAN_OF_CARE, ), )
         occupational_therapy_done = safe_get(raw, "occupational_therapy", required=False) # Check if occupational therapy done boolean is present in raw data, not required
         if occupational_therapy_done is not None:
             procedure_occupational_therapy = build_occupational_therapy_procedure(patient_ref=patient_ref,
                                                                 encounter_ref=encounter_ref,
                                                                 occupational_therapy=occupational_therapy_done) # Build Procedure resource for occupational therapy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_occupational_therapy, request=BundleEntryRequest(method="POST", url="Procedure")))
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_occupational_therapy, request=BundleEntryRequest(method="POST", url="Procedure")))
+            context.add_resource(procedure_occupational_therapy, sections=(DischargeSection.PLAN_OF_CARE, ), )
+        
         speech_therapy_done = safe_get(raw, "speech_therapy", required=False) # Check if speech therapy done boolean is present in raw data, not required
         if speech_therapy_done is not None:
             procedure_speech_therapy = build_speech_therapy_procedure(patient_ref=patient_ref,
                                                                 encounter_ref=encounter_ref,
                                                                 speech_therapy=speech_therapy_done) # Build Procedure resource for speech therapy using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_speech_therapy, request=BundleEntryRequest(method="POST", url="Procedure")))
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_speech_therapy, request=BundleEntryRequest(method="POST", url="Procedure")))
+            context.add_resource(procedure_speech_therapy, sections=(DischargeSection.PLAN_OF_CARE, ), )
 
 ################################# End Post-acute care data #####################################
 
@@ -1053,16 +1058,16 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                 discharge=True) # Build Observation resource for mRS at discharge using patient_ref, encounter_ref and mRS at discharge value from raw data, field not required
             
 
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=mrs_observation, request=BundleEntryRequest(method="POST", url="Observation")))
-
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=mrs_observation, request=BundleEntryRequest(method="POST", url="Observation")))
+        context.add_resource(mrs_observation, sections=(DischargeSection.FUNCTIONAL_STATUS, DischargeSection.HOSPITAL_COURSE, ), )
     nihss_at_discharge = safe_get(raw, "discharge_nihss_score", required=False) # Check if NIHSS at discharge value is present in raw data, not required
     if nihss_at_discharge is not None:
         nihss_observation = build_observation_nihss(patient_ref=patient_ref,
                                                 encounter_ref=encounter_ref,
                                                 value_nihss=nihss_at_discharge,
                                                 discharge_nihss=True) # Build Observation resource for NIHSS at discharge using patient_ref, encounter_ref and NIHSS at discharge value from raw data, field not required
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=nihss_observation, request=BundleEntryRequest(method="POST", url="Observation")))
-
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=nihss_observation, request=BundleEntryRequest(method="POST", url="Observation")))
+        context.add_resource(nihss_observation, sections=(DischargeSection.FUNCTIONAL_STATUS, DischargeSection.HOSPITAL_COURSE, ), )
     ################################ 4.2 Treatment at discharge (MedicationRequest) ######################################
     
     discharge_any_med = safe_get_bool(raw, "discharge_any_medication", required=False) # Check if any medication at discharge boolean is present in raw data, not required
@@ -1075,7 +1080,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
         for med_request in build_on_discharge_medicationRequest_profile(patient_ref = patient_ref,
                                                                         encounter_ref=encounter_ref,
                                                                         on_discharge_meds=meds): # Build MedicationRequest resources for medications prescribed at discharge using patient_ref, encounter_ref and list of medications prescribed at discharge from raw data, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=med_request, request=BundleEntryRequest(method="POST", url="MedicationRequest")))
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=med_request, request=BundleEntryRequest(method="POST", url="MedicationRequest")))
+            context.add_resource(med_request, sections=(DischargeSection.DISCHARGE_MEDICATIONS, ), )
         if Medications.ANTICOAGULANT not in meds:
             no_anticoagulant_reason = safe_get(raw, "no_anticoagulants_reason", required=False)
             if no_anticoagulant_reason is not None:
@@ -1083,15 +1089,16 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                         encounter_ref=encounter_ref,
                                                                                         no_anticoagulant_discharge_reason=NoAnticoagulantReason.by_id(no_anticoagulant_reason),
                                                                                         ) # Build Observation resource for no anticoagulant prescribed at discharge using patient_ref, encounter_ref and boolean for any medication at discharge from raw data, field not required
-                entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_no_anticoagulant, request=BundleEntryRequest(method="POST", url="Observation")))
+                #entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_no_anticoagulant, request=BundleEntryRequest(method="POST", url="Observation")))
+                context.add_resource(observation_no_anticoagulant)
     ################################## 4.3 Follow-up appointment (Appointment) ######################################
     stroke_management_appointment = safe_get(raw, "stroke_management_appointment", required=False) # Check if follow-up appointment boolean is present in raw data, not required
     if stroke_management_appointment is not None:
         stroke_appointment = build_appointment_observation(patient_ref=patient_ref,
                                                             encounter_ref=encounter_ref,
                                                             appointment_management= ManagementAppointment.by_id(stroke_management_appointment)) # Build Appointment resource for follow-up appointment using patient_ref, encounter_ref and follow-up appointment boolean from raw data, field not required
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=stroke_appointment, request=BundleEntryRequest(method="POST", url="Appointment")))
-    
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=stroke_appointment, request=BundleEntryRequest(method="POST", url="Appointment")))
+        context.add_resource(stroke_appointment, sections=(DischargeSection.PLAN_OF_CARE, ), )
 
     ################################# 4.4 Discharge Systolic Blood Pressure (Observation) ######################################
     discharge_systolic_bp = safe_get(raw, "discharge_systolic_pressure", required=False) # Check if discharge systolic blood pressure value is present in raw data, not required
@@ -1101,8 +1108,9 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                                     systolic_pressure=discharge_systolic_bp,
                                                                                     diastolic_pressure=None,
                                                                                     timing=AssessmentContext.DISCHARGE_OR_7_DAYS) # Build Observation resource for discharge systolic blood pressure using patient_ref, encounter_ref and discharge systolic blood pressure value from raw data, field not required
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=discharge_systolic_bp_observation, request=BundleEntryRequest(method="POST", url="Observation")))
-
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=discharge_systolic_bp_observation, request=BundleEntryRequest(method="POST", url="Observation")))
+        context.add_resource(discharge_systolic_bp_observation, sections=(DischargeSection.VITAL_SIGNS, ), )
+    ################################ 4.5 Discharge Glucose (Observation) ######################################
     discharge_glucose = safe_get(raw, "discharge_glucose", required=False) # Check if discharge glucose value is present in raw data, not required
     if discharge_glucose is not None:
         discharge_glucose_observation = build_observation_glucose(patient_ref=patient_ref,
@@ -1110,8 +1118,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                     glucose=discharge_glucose,
                                                                     timing=AssessmentContext.DISCHARGE_OR_7_DAYS) # Build Observation resource for discharge glucose using patient_ref, encounter_ref and discharge glucose value from raw data, field not required
         
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=discharge_glucose_observation, request=BundleEntryRequest(method="POST", url="Observation")))
-
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=discharge_glucose_observation, request=BundleEntryRequest(method="POST", url="Observation")))
+        context.add_resource(discharge_glucose_observation, sections=(DischargeSection.SIGNIFICANT_RESULTS, ), )
 
 ################################### End of discharge data #####################################
 
@@ -1125,8 +1133,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                     encounter_ref=encounter_ref,
                                                                     three_month_contact_mode=ThreeMonthContactMode.by_id(three_m_mode_contact) # Build Observation resource for 3-month follow-up contact mode using patient_ref, encounter_ref and 3-month follow-up contact mode value from raw data, field not required
                                                                     )
-        entries.append(BundleEntry(fullUrl=get_uuid(), resource=three_m_mode_contact_observation, request=BundleEntryRequest(method="POST", url="Observation")))
-
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=three_m_mode_contact_observation, request=BundleEntryRequest(method="POST", url="Observation")))
+        context.add_resource(three_m_mode_contact_observation )
     ########################## 5.2 Three-month mRS (Observation) ######################################
         three_m_mrs = safe_get(raw, "three_m_mrs", required=False) # Check if 3-month mRS value is present in raw data, not required
         if three_m_mrs is not None:
@@ -1134,8 +1142,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                             encounter_ref=encounter_ref,
                                                             mrs_score=MRsScore.by_id(three_m_mrs),
                                                             threem=True) # Build Observation resource for 3-month mRS using patient_ref, encounter_ref and 3-month mRS value from raw data, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=three_m_mrs_observation, request=BundleEntryRequest(method="POST", url="Observation")))
-
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=three_m_mrs_observation, request=BundleEntryRequest(method="POST", url="Observation")))
+            context.add_resource(three_m_mrs_observation)
 
 
 ################################# 6. Timing specific metrics (KPis) ######################################
