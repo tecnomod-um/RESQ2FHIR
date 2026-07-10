@@ -176,6 +176,8 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
             "Appointment",
             "CarePlan",
             "ServiceRequest",
+            "Procedure",
+            "Observation"
         }),
     ),
 }
@@ -186,6 +188,12 @@ SECTION_ORDER: tuple[DischargeSection, ...] = tuple(
         SECTION_DEFINITIONS,
         key=lambda section: SECTION_DEFINITIONS[section].order,
     )
+)
+
+REGISTRY_ONLY_FIELDS = (
+    "door_to_needle",
+    "door_to_groin",
+    "door_to_door",
 )
 
 OCCLUSION_FIELDS = (
@@ -411,7 +419,7 @@ SECTION_SOURCE_FIELDS: dict[
 
     DischargeSection.PLAN_OF_CARE: (
         "stroke_management_appointment",
-    ) + POST_ACUTE_REHABILITATION_FIELDS,
+    ) + POST_ACUTE_REHABILITATION_FIELDS
 }
 
 HEADER_SOURCE_FIELDS = (

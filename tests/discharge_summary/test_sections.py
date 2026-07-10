@@ -1,10 +1,5 @@
-from scripts.discharge_summary.sections import (
-    LOINC,
-    REGISTRY_ONLY_FIELDS,
-    SECTION_DEFINITIONS,
-    SECTION_ORDER,
-    SECTION_SOURCE_FIELDS,
-)
+
+from scripts.discharge_summary.sections import LOINC, REGISTRY_ONLY_FIELDS, SECTION_DEFINITIONS, SECTION_ORDER, SECTION_SOURCE_FIELDS
 from scripts.enum_models import DischargeSection
 
 
