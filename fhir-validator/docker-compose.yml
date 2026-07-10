@@ -60,7 +60,7 @@ services:
       # Remote terminology fallback disabled by default for R5: some public
       # endpoints reject fhirVersion=5.0.0 and return HAPI-0710.
       APP_FHIR_TXBASEURL: ""
-      APP_FHIR_IGCLASSPATHPACKAGES: "classpath:/ig/RESQ-IG-5.2.11.tgz"
+      APP_FHIR_IGCLASSPATHPACKAGES: "classpath:/ig/RESQ-IG-6.tgz"
     networks:
       sknet:
         aliases: [validator]
@@ -74,10 +74,10 @@ services:
       timeout: 5s
       retries: 30
       start_period: 20s
-
+  
 networks:
   sknet:
-
+  
 volumes:
   elastic:
 

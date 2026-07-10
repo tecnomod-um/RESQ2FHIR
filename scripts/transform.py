@@ -331,7 +331,7 @@ def bundle_to_json_dict(bundle: Bundle) -> Dict[str, Any]:
             raise
 
 
-def process_csv(csv_path: Path,output_dir: Path, verbose: bool = False, bundle_mode: str = "transaction"):    
+def process_csv(csv_path: Path,output_dir: Path, verbose: bool = False, bundle_mode: str = "both"):    
     """
     Main processing function: read CSV, transform to FHIR Bundles, write JSON files.
     """
@@ -509,11 +509,11 @@ Examples:
         "document",
         "both",
     ],
-    default="transaction",
+    default="both",
     help=(
         "Which FHIR Bundle output to generate: "
         "transaction, document, or both. "
-        "Default: transaction."
+        "Default: both."
     ),
 )
     

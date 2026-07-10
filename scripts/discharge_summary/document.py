@@ -12,6 +12,7 @@ from fhir.resources.composition import Composition, CompositionSection
 from fhir.resources.meta import Meta
 from fhir.resources.narrative import Narrative
 from fhir.resources.reference import Reference
+from fhir.resources.identifier import Identifier
 
 from scripts.discharge_summary.sections import (
     SECTION_DEFINITIONS,
@@ -51,19 +52,11 @@ def build_discharge_composition(
     composition = Composition(
         status="final",
         type=DISCHARGE_SUMMARY_TYPE,
-        subject=Reference(reference=context.patient_ref),
-        encounter=Reference(reference=context.encounter_ref)
-        if context.encounter_ref
-        else None,
+        subject=[Reference(reference=context.patient_ref)],
+        encounter=Reference(reference=context.encounter_ref) if context.encounter_ref else None,
         date=datetime.now(timezone.utc),
-        author=[
-            Reference(reference=context.organization_ref)
-        ]
-        if context.organization_ref
-        else [],
-        custodian=Reference(reference=context.organization_ref)
-        if context.organization_ref
-        else None,
+        author=[ Reference(reference=context.organization_ref)] if context.organization_ref  else [],
+        custodian=Reference(reference=context.organization_ref) if context.organization_ref else None,
         title="Stroke Hospital Discharge Summary",
         section=sections,
         meta=Meta(
@@ -71,6 +64,9 @@ def build_discharge_composition(
                 "http://tecnomod-um.org/StructureDefinition/resq-stroke-discharge-composition"
             ]
         ),
+        identifier=[Identifier(system="https://stroke.qualityregistry.org", value=str(context.case_id))]
+
+
     )
 
     composition.text = _build_composition_text(
@@ -207,6 +203,7 @@ def build_discharge_document_bundle(
         type="document",
         timestamp=datetime.now(timezone.utc),
         entry=entries,
+        identifier=Identifier(system="https://stroke.qualityregistry.org", value=str(context.case_id))
     )
 
 def _resource_summary(resource: Any) -> str:
