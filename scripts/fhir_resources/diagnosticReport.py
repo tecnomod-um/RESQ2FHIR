@@ -84,7 +84,7 @@ def build_carotid_arteries_imaging_diagnostic_report(patient_ref: str, encounter
     return diagnostic_report
 
 
-def build_ct_mr_after_ivt_diagnostic_report(patient_ref: str, encounter_ref: str, observation_ref: list, imaging_type :PostNeurosurgeryImaging | PostRecanalizationImaging ) -> DiagnosticReport:
+def build_ct_mr_after_ivt_diagnostic_report(patient_ref: str, encounter_ref: str, observation_ref: list[str], imaging_type :PostNeurosurgeryImaging | PostRecanalizationImaging ) -> DiagnosticReport:
     """
     Build a FHIR DiagnosticReport resource for CT/MR after IVT results.
     
@@ -102,12 +102,19 @@ def build_ct_mr_after_ivt_diagnostic_report(patient_ref: str, encounter_ref: str
         code=CodeableConcept(coding=[imaging_type.to_coding()])
     )
 
-    if observation_ref != []:
-        diagnostic_report.conclusionCode = [CodeableConcept(coding=[SpecificFinding.NO_FINDING.to_coding()])]
-        reference_list = []
-        for obs_ref in observation_ref:
-            reference_list.append(Reference(reference=obs_ref))
-        diagnostic_report.result = reference_list
+    if observation_ref:
+        diagnostic_report.result = [
+            Reference(reference=obs_ref)
+            for obs_ref in observation_ref
+            ]
+    else:
+        diagnostic_report.conclusionCode = [
+        CodeableConcept(
+            coding=[
+                SpecificFinding.NO_FINDING.to_coding()
+            ]
+        )
+    ]
 
     return diagnostic_report
 

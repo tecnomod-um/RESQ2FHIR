@@ -6,3 +6,6 @@ scripts/fhir_resources/__pycache__/
 data/
 scripts/normalization/__pycache__/
 fhir-validator/target/
+__pycache__/
+*.pyc
+fhir-validator/terminology/*.zip
