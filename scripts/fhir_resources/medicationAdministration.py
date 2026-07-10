@@ -327,3 +327,55 @@ def build_medicationAdministration_anticoagulantReversal(patient_ref:str, encoun
         medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[Medications.ANTICOAGULANT_REVERSAL.to_coding()]))
 
     return medicationAdministration
+
+
+def build_medicationAdministration_anticoagulantReversal(patient_ref:str, encounter_ref:str, condition_ref: str | None, medication: AnticoagulantReversal, medication_timestamp:str | None = None, initial_reference_time: str | None = None, final_reference_time: str | None = None,no_medication_reason: NoAnticoagulantReversalReason | None = None) -> MedicationAdministration:
+    """
+    Build a FHIR MedicationAdministration resource for anticoagulant reversal medication administration.
+    
+    Args:
+        patient_ref: Reference to the Patient resource
+        encounter_ref: Reference to the Encounter resource
+        condition_ref: Reference to the Condition resource
+        medication: The anticoagulant reversal medication administered
+        medication_timestamp: The timestamp of the medication administration
+        no_medication_reason: The reason for no medication administration, if applicable
+    Returns:
+        MedicationAdministration resource for anticoagulant reversal medication administration
+    """
+
+
+
+    medicationAdministration = MedicationAdministration(
+        status="completed",
+        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/anticoagulant-reversal-medication-administration-profile"]),
+        subject=Reference(reference=patient_ref),
+        encounter=Reference(reference=encounter_ref),
+        medication=CodeableReference(concept=CodeableConcept(coding=[medication.to_coding()]))
+        )
+    
+    reason_list = []
+    if condition_ref is not None:
+        reason_list.append(CodeableReference(reference=Reference(reference=condition_ref)))
+        medicationAdministration.reason = reason_list
+
+    if medication_timestamp is not None:
+        medication_timestamp_parsed = parse_datetime(medication_timestamp)
+        medicationAdministration.occurenceDateTime = medication_timestamp_parsed
+    else:
+        if initial_reference_time is not None:
+            initial_ref_timestamp = parse_datetime(initial_reference_time)
+            if final_reference_time is not None:
+                final_ref_timestamp = parse_datetime(final_reference_time)
+                period = Period(start=initial_ref_timestamp, end=final_ref_timestamp)
+            else:
+                period = Period(start=initial_ref_timestamp)
+            medicationAdministration.occurencePeriod = period
+
+
+    if no_medication_reason is not None:
+        medicationAdministration.status = "not-done"
+        medicationAdministration.statusReason = [CodeableConcept(coding=[no_medication_reason.to_coding()])]
+        medicationAdministration.medication = CodeableReference(concept=CodeableConcept(coding=[Medications.ANTICOAGULANT_REVERSAL.to_coding()]))
+
+    return medicationAdministration
