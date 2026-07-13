@@ -21,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import com.example.validator.validation.RequiredResourcesValidator;
 import com.example.validator.validation.SnomedSnowstormValidator;
+import com.example.validator.validation.LoincHapiValidationSupport;
 
 import java.io.IOException;
 
@@ -40,13 +41,15 @@ public class FhirValidatorConfig {
   private static final Logger log = LoggerFactory.getLogger(FhirValidatorConfig.class);
 
   /** Optional fallback terminology service base URL (e.g. https://tx.fhir.org/r4 or /r5). */
-  @Value("${app.fhir.txBaseUrl:}")
-  private String txBaseUrl;
+  // @Value("${app.fhir.txBaseUrl:}")
+  // private String txBaseUrl;
 
   /** Comma-separated list of IG package paths to load from the classpath (NPM .tgz files). */
   @Value("${app.fhir.igClasspathPackages:}")
   private String igClasspathPackages;
 
+  @Value("${app.fhir.loinc.baseUrl:http://hapi:8080/fhir}")
+  private String loincBaseUrl;
   /**
    * R5 FHIR context used by the application.
    *
@@ -64,7 +67,12 @@ public class FhirValidatorConfig {
 
     return ctx;
   }
-
+  @Bean
+  public LoincHapiValidationSupport loincHapiValidationSupport(
+      @Qualifier("r5Ctx") FhirContext ctxR5
+  ) {
+      return new LoincHapiValidationSupport(ctxR5, loincBaseUrl);
+  }
   /**
    * Builds the ValidationSupportChain used by the FHIR instance validator.
    *
@@ -82,8 +90,10 @@ public class FhirValidatorConfig {
    *    that calls Snowstorm directly, avoiding R4/R5 mixing in the chain.
    */
   @Bean
-  public ValidationSupportChain validationSupportChain(@Qualifier("r5Ctx") FhirContext ctxR5) {
-    // 0) Load IG(s) from classpath with NPM package support
+  public ValidationSupportChain validationSupportChain(
+      @Qualifier("r5Ctx") FhirContext ctxR5,
+      LoincHapiValidationSupport loincSupport
+  ) {    // 0) Load IG(s) from classpath with NPM package support
     NpmPackageValidationSupport npm = new NpmPackageValidationSupport(ctxR5);
     if (StringUtils.hasText(igClasspathPackages)) {
       for (String spec : igClasspathPackages.split(",")) {
@@ -111,20 +121,26 @@ public class FhirValidatorConfig {
 
     // 1) Base chain: core support + IG + terminology helpers
     ValidationSupportChain chain = new ValidationSupportChain();
-    chain.addValidationSupport(npm);    // Your IG packages
-    chain.addValidationSupport(new DefaultProfileValidationSupport(ctxR5));        // Core R5 structures/profiles                                      
-    chain.addValidationSupport(new InMemoryTerminologyServerValidationSupport(ctxR5));
-    chain.addValidationSupport(new CommonCodeSystemsTerminologyService(ctxR5));   // UCUM, etc.
-    chain.addValidationSupport(new SnapshotGeneratingValidationSupport(ctxR5));
 
-    // 2) Optional fallback: remote terminology (tx.fhir.org) for non-SNOMED lookups
-    //    Keep the base URL consistent with your FHIR version (e.g., /r4 or /r5).
-    if (StringUtils.hasText(txBaseUrl)) {
-      RemoteTerminologyServiceValidationSupport tx = new RemoteTerminologyServiceValidationSupport(ctxR5);
-      tx.setBaseUrl(txBaseUrl); // e.g. https://tx.fhir.org/r4 or /r5 depending on your setup
-      chain.addValidationSupport(tx);
-      log.info("Fallback terminology added: {}", txBaseUrl);
-    }
+    chain.addValidationSupport(npm);
+    chain.addValidationSupport(
+        new DefaultProfileValidationSupport(ctxR5)
+    );
+
+    // Antes del servidor terminológico en memoria
+    chain.addValidationSupport(loincSupport);
+
+    chain.addValidationSupport(
+        new InMemoryTerminologyServerValidationSupport(ctxR5)
+    );
+
+    chain.addValidationSupport(
+        new CommonCodeSystemsTerminologyService(ctxR5)
+    );
+
+    chain.addValidationSupport(
+        new SnapshotGeneratingValidationSupport(ctxR5)
+    );
 
     return chain;
   }

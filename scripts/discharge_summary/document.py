@@ -27,8 +27,8 @@ DISCHARGE_SUMMARY_TYPE = CodeableConcept(
     coding=[
         Coding(
             system="http://loinc.org",
-            code="34105-7",
-            display="Hospital Discharge summary",
+            code="18842-5",
+            display="Discharge summary",
         )
     ]
 )
@@ -64,7 +64,7 @@ def build_discharge_composition(
                 "http://tecnomod-um.org/StructureDefinition/resq-stroke-discharge-composition"
             ]
         ),
-        identifier=[Identifier(system="https://stroke.qualityregistry.org", value=str(context.case_id))]
+        identifier=[Identifier(system="https://stroke.qualityregistry.org/", value=str(context.case_id))]
 
 
     )
@@ -203,7 +203,7 @@ def build_discharge_document_bundle(
         type="document",
         timestamp=datetime.now(timezone.utc),
         entry=entries,
-        identifier=Identifier(system="https://stroke.qualityregistry.org", value=str(context.case_id))
+        identifier=Identifier(system="https://stroke.qualityregistry.org/", value=str(context.case_id))
     )
 
 def _resource_summary(resource: Any) -> str:

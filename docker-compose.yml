@@ -66,10 +66,11 @@ services:
 
         # Fallback terminológico remoto desactivado por defecto en R5:
         # algunos endpoints públicos rechazan fhirVersion=5.0.0 y generan HAPI-0710.
-        APP_FHIR_TXBASEURL: "http://hapi:8080/fhir"
+        APP_FHIR_TXBASEURL: ""
+        APP_FHIR_LOINC_BASEURL: "http://hapi:8080/fhir"
 
         # IG local con perfiles, extensiones, CodeSystems y ValueSets propios
-        APP_FHIR_IGCLASSPATHPACKAGES: "classpath:/ig/RESQ-IG-6.0.tgz"
+        APP_FHIR_IGCLASSPATHPACKAGES: "classpath:/ig/RESQ-IG-6.0.1.tgz"
       networks:
         resqnet:
           aliases: [validator]

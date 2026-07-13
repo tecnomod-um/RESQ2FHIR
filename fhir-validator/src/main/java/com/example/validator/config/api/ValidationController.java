@@ -67,14 +67,36 @@ public class ValidationController {
   }
 
   private void suppressInformationIssues(OperationOutcome oo) {
-    if (!suppressInformationIssues) {
-      return;
-    }
-    oo.getIssue().removeIf(issue ->
-        issue.hasSeverity()
-            && issue.getSeverity() == OperationOutcome.IssueSeverity.INFORMATION
-    );
-    oo.setText(null);
+      oo.getIssue().removeIf(issue -> {
+          // Eliminar mensajes informativos cuando esté configurado
+          boolean informationIssue =
+              suppressInformationIssues
+                  && issue.hasSeverity()
+                  && issue.getSeverity()
+                      == OperationOutcome.IssueSeverity.INFORMATION;
+
+          // Eliminar únicamente el warning conocido de expansión LOINC
+          String diagnostics = issue.getDiagnostics();
+
+          boolean knownLoincExpansionWarning =
+              issue.hasSeverity()
+                  && issue.getSeverity()
+                      == OperationOutcome.IssueSeverity.WARNING
+                  && diagnostics != null
+                  && diagnostics.contains("Unable to expand ValueSet")
+                  && diagnostics.contains(
+                      "CodeSystem 'http://loinc.org' is ignored/not-present"
+                  )
+                  && issue.getExpression().stream()
+                      .anyMatch(expression ->
+                          expression.hasValue()
+                              && expression.getValue().endsWith(".type")
+                      );
+
+          return informationIssue || knownLoincExpansionWarning;
+      });
+
+      oo.setText(null);
   }
 
   /**
