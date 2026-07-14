@@ -1,27 +1,49 @@
+"""FHIR R5 document builder aligned with EHDSDischargeReport.
+
+The Xt-EHR logical model drives the semantic hierarchy. The generated resource
+remains a RESQ-specific FHIR R5 Composition inside a document Bundle.
+"""
+
 from __future__ import annotations
 
 import html
 from collections import deque
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Iterable
 
 from fhir.resources.bundle import Bundle, BundleEntry
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.coding import Coding
 from fhir.resources.composition import Composition, CompositionSection
+from fhir.resources.identifier import Identifier
 from fhir.resources.meta import Meta
 from fhir.resources.narrative import Narrative
 from fhir.resources.reference import Reference
-from fhir.resources.identifier import Identifier
 
-from scripts.discharge_summary.sections import (
-    SECTION_DEFINITIONS,
-    SECTION_ORDER,
+from scripts.discharge_summary.ehds_model import (
+    DOCUMENT_SECTION_DEFINITIONS,
+    ROOT_SECTION_ORDER,
+    DocumentSection,
+    DocumentSectionDefinition,
+    child_sections,
 )
-from scripts.enum_models import DischargeSection
 from scripts.modeling_context import StrokeCaseContext, StrokeCaseResource
 from scripts.utils import get_uuid
 
+
+LIST_EMPTY_REASON = "http://terminology.hl7.org/CodeSystem/list-empty-reason"
+RESQ_COMPOSITION_PROFILE = (
+    "http://tecnomod-um.org/StructureDefinition/"
+    "resq-stroke-discharge-composition"
+)
+
+EMPTY_REASON_TEXT = {
+    "nilknown": "No known information exists for this section.",
+    "notasked": "This information was not collected.",
+    "unavailable": "The information was expected but is unavailable.",
+    "notfound": "The information could not be located.",
+    "withheld": "The information is not available for disclosure.",
+}
 
 DISCHARGE_SUMMARY_TYPE = CodeableConcept(
     coding=[
@@ -33,19 +55,19 @@ DISCHARGE_SUMMARY_TYPE = CodeableConcept(
     ]
 )
 
+
 def build_discharge_composition(
     context: StrokeCaseContext,
 ) -> Composition:
-    """Build the Composition resource from section assignments."""
+    """Build the EHDS-aligned RESQ FHIR R5 Composition."""
 
-    sections = []
+    sections: list[CompositionSection] = []
 
-    for section_key in SECTION_ORDER:
-        section = _build_section(
+    for section_key in ROOT_SECTION_ORDER:
+        section = _build_document_section(
             context=context,
             section_key=section_key,
         )
-
         if section is not None:
             sections.append(section)
 
@@ -53,36 +75,63 @@ def build_discharge_composition(
         status="final",
         type=DISCHARGE_SUMMARY_TYPE,
         subject=[Reference(reference=context.patient_ref)],
-        encounter=Reference(reference=context.encounter_ref) if context.encounter_ref else None,
-        date=datetime.now(timezone.utc),
-        author=[ Reference(reference=context.organization_ref)] if context.organization_ref  else [],
-        custodian=Reference(reference=context.organization_ref) if context.organization_ref else None,
-        title="Stroke Hospital Discharge Summary",
-        section=sections,
-        meta=Meta(
-            profile=[
-                "http://tecnomod-um.org/StructureDefinition/resq-stroke-discharge-composition"
-            ]
+        encounter=(
+            Reference(reference=context.encounter_ref)
+            if context.encounter_ref
+            else None
         ),
-        identifier=[Identifier(system="https://stroke.qualityregistry.org/", value=str(context.case_id))]
-
-
+        date=datetime.now(timezone.utc),
+        author=(
+            [Reference(reference=context.organization_ref)]
+            if context.organization_ref
+            else []
+        ),
+        custodian=(
+            Reference(reference=context.organization_ref)
+            if context.organization_ref
+            else None
+        ),
+        title="Stroke Hospital Discharge Summary",
+        language="en",
+        version="1",
+        section=sections,
+        meta=Meta(profile=[RESQ_COMPOSITION_PROFILE]),
+        identifier=[
+            Identifier(
+                system="https://stroke.qualityregistry.org/",
+                value=str(context.case_id),
+            )
+        ],
     )
 
-    composition.text = _build_composition_text(
-        composition
-    )
-
+    composition.text = _build_composition_text(composition)
     return composition
 
-def _build_section(
-    context: StrokeCaseContext,
-    section_key: DischargeSection,
-) -> CompositionSection | None:
-    definition = SECTION_DEFINITIONS[section_key]
-    records = context.resources_for_section(section_key)
 
-    if not records and not definition.required:
+def _build_document_section(
+    context: StrokeCaseContext,
+    section_key: DocumentSection,
+) -> CompositionSection | None:
+    definition = DOCUMENT_SECTION_DEFINITIONS[section_key]
+    records = _records_for_document_section(
+        context=context,
+        definition=definition,
+    )
+
+    nested_sections = tuple(
+        child
+        for child_key in child_sections(section_key)
+        if (
+            child := _build_document_section(
+                context=context,
+                section_key=child_key,
+            )
+        ) is not None
+    )
+
+    has_content = bool(records or nested_sections)
+
+    if not has_content and not definition.required:
         return None
 
     section = CompositionSection(
@@ -99,6 +148,10 @@ def _build_section(
         text=_build_section_text(
             title=definition.title,
             records=records,
+            children=nested_sections,
+            empty_reason=(
+                None if has_content else definition.empty_reason
+            ),
         ),
     )
 
@@ -107,80 +160,123 @@ def _build_section(
             Reference(reference=record.full_url)
             for record in records
         ]
-    else:
-        section.emptyReason = CodeableConcept(
-            coding=[
-                Coding(
-                    system="http://terminology.hl7.org/CodeSystem/list-empty-reason",
-                    code="unavailable",
-                    display="Unavailable",
-                )
-            ]
-        )
+
+    if nested_sections:
+        section.section = list(nested_sections)
+
+    if not has_content:
+        section.emptyReason = _build_empty_reason(definition)
 
     return section
+
+
+def _records_for_document_section(
+    context: StrokeCaseContext,
+    definition: DocumentSectionDefinition,
+) -> tuple[StrokeCaseResource, ...]:
+    source_sections = set(definition.source_sections)
+    records: list[StrokeCaseResource] = []
+    seen: set[str] = set()
+
+    if definition.include_encounter and context.encounter_ref:
+        encounter_record = context.get_resource(context.encounter_ref)
+        if encounter_record is not None:
+            records.append(encounter_record)
+            seen.add(encounter_record.full_url)
+
+    if source_sections:
+        for record in context.resources:
+            if record.full_url in seen:
+                continue
+            if source_sections.intersection(record.sections):
+                records.append(record)
+                seen.add(record.full_url)
+
+    return tuple(records)
+
+
+def _build_empty_reason(
+    definition: DocumentSectionDefinition,
+) -> CodeableConcept:
+    return CodeableConcept(
+        coding=[
+            Coding(
+                system=LIST_EMPTY_REASON,
+                code=definition.empty_reason,
+                display=definition.empty_reason_display,
+            )
+        ]
+    )
+
 
 def _build_section_text(
     title: str,
     records: tuple[StrokeCaseResource, ...],
+    children: tuple[CompositionSection, ...],
+    empty_reason: str | None,
 ) -> Narrative:
-    if not records:
+    if not records and not children:
+        message = EMPTY_REASON_TEXT.get(
+            empty_reason or "unavailable",
+            "No information is available for this section.",
+        )
         div = (
-            f'<div xmlns="http://www.w3.org/1999/xhtml">'
-            f"<p>No structured entries available for "
-            f"{html.escape(title)}.</p>"
-            f"</div>"
+            '<div xmlns="http://www.w3.org/1999/xhtml">'
+            f"<p>{html.escape(message)}</p>"
+            "</div>"
         )
+        return Narrative(status="generated", div=div)
 
-        return Narrative(
-            status="generated",
-            div=div,
+    fragments: list[str] = []
+
+    if records:
+        items = "".join(
+            f"<li>{html.escape(_resource_summary(record.resource))}</li>"
+            for record in records
         )
+        fragments.append(f"<ul>{items}</ul>")
 
-    items = "".join(
-        f"<li>{html.escape(_resource_summary(record.resource))}</li>"
-        for record in records
-    )
+    if children:
+        child_items = "".join(
+            f"<li>{html.escape(str(child.title))}</li>"
+            for child in children
+        )
+        fragments.append(
+            "<p>Structured subsections:</p>"
+            f"<ul>{child_items}</ul>"
+        )
 
     div = (
-        f'<div xmlns="http://www.w3.org/1999/xhtml">'
-        f"<ul>{items}</ul>"
-        f"</div>"
+        '<div xmlns="http://www.w3.org/1999/xhtml">'
+        f"<h2>{html.escape(title)}</h2>"
+        f"{''.join(fragments)}"
+        "</div>"
     )
-
-    return Narrative(
-        status="generated",
-        div=div,
-    )
+    return Narrative(status="generated", div=div)
 
 
 def _build_composition_text(
     composition: Composition,
 ) -> Narrative:
     div = (
-        f'<div xmlns="http://www.w3.org/1999/xhtml">'
+        '<div xmlns="http://www.w3.org/1999/xhtml">'
         f"<p>{html.escape(composition.title)}</p>"
-        f"</div>"
+        "</div>"
     )
+    return Narrative(status="generated", div=div)
 
-    return Narrative(
-        status="generated",
-        div=div,
-    )
 
 def build_discharge_document_bundle(
     context: StrokeCaseContext,
 ) -> Bundle:
-    """Build a FHIR document Bundle for the stroke discharge summary."""
+    """Build a self-contained FHIR R5 document Bundle."""
 
     composition_ref = get_uuid()
-
-    composition = build_discharge_composition(
-        context=context,
-    )
+    composition = build_discharge_composition(context=context)
 
     document_full_urls = _collect_document_full_urls(
         context=context,
+        composition=composition,
     )
 
     entries: list[BundleEntry] = [
@@ -203,8 +299,52 @@ def build_discharge_document_bundle(
         type="document",
         timestamp=datetime.now(timezone.utc),
         entry=entries,
-        identifier=Identifier(system="https://stroke.qualityregistry.org/", value=str(context.case_id))
+        identifier=Identifier(
+            system="https://stroke.qualityregistry.org/",
+            value=str(context.case_id),
+        ),
     )
+
+
+def _collect_document_full_urls(
+    context: StrokeCaseContext,
+    composition: Composition,
+) -> set[str]:
+    """Collect section entries, header resources and local dependencies."""
+
+    selected = _composition_entry_references(composition)
+
+    if context.patient_ref:
+        selected.add(context.patient_ref)
+    if context.encounter_ref:
+        selected.add(context.encounter_ref)
+    if context.organization_ref:
+        selected.add(context.organization_ref)
+
+    return _expand_with_local_references(
+        context=context,
+        initial_full_urls=selected,
+    )
+
+
+def _composition_entry_references(
+    composition: Composition,
+) -> set[str]:
+    references: set[str] = set()
+
+    def visit(
+        sections: Iterable[CompositionSection] | None,
+    ) -> None:
+        for section in sections or ():
+            for entry in getattr(section, "entry", None) or ():
+                reference = getattr(entry, "reference", None)
+                if isinstance(reference, str):
+                    references.add(reference)
+            visit(getattr(section, "section", None))
+
+    visit(composition.section)
+    return references
+
 
 def _resource_summary(resource: Any) -> str:
     resource_type = resource.get_resource_type()
@@ -242,7 +382,7 @@ def _resource_summary(resource: Any) -> str:
         return f"Diagnostic report: {_code_display(resource.code)}"
 
     if resource_type == "Encounter":
-        return "Encounter discharge details"
+        return _encounter_summary(resource)
 
     if resource_type == "Location":
         return "Care location"
@@ -250,7 +390,33 @@ def _resource_summary(resource: Any) -> str:
     if resource_type == "Appointment":
         return "Follow-up appointment"
 
+    if resource_type == "CarePlan":
+        return "Care plan"
+
+    if resource_type == "ServiceRequest":
+        return f"Service request: {_code_display(resource.code)}"
+
+    if resource_type == "AllergyIntolerance":
+        return f"Allergy or intolerance: {_code_display(resource.code)}"
+
+    if resource_type == "Flag":
+        return f"Medical alert: {_code_display(resource.code)}"
+
+    if resource_type in {"Device", "DeviceAssociation"}:
+        return "Medical device or implant"
+
     return resource_type
+
+
+def _encounter_summary(resource: Any) -> str:
+    period = getattr(resource, "actualPeriod", None)
+    start = getattr(period, "start", None) if period else None
+    end = getattr(period, "end", None) if period else None
+
+    if start or end:
+        return f"Encounter: {start or 'unknown'} to {end or 'unknown'}"
+
+    return "Encounter information"
 
 
 def _observation_summary(resource: Any) -> str:
@@ -259,8 +425,14 @@ def _observation_summary(resource: Any) -> str:
     if getattr(resource, "valueInteger", None) is not None:
         return f"Observation: {label} = {resource.valueInteger}"
 
+    if getattr(resource, "valueDecimal", None) is not None:
+        return f"Observation: {label} = {resource.valueDecimal}"
+
     if getattr(resource, "valueBoolean", None) is not None:
         return f"Observation: {label} = {resource.valueBoolean}"
+
+    if getattr(resource, "valueString", None) is not None:
+        return f"Observation: {label} = {resource.valueString}"
 
     if getattr(resource, "valueCodeableConcept", None) is not None:
         return (
@@ -276,7 +448,42 @@ def _observation_summary(resource: Any) -> str:
             f"{getattr(quantity, 'unit', '')}"
         ).strip()
 
+    components = getattr(resource, "component", None) or ()
+    if components:
+        component_summaries = ", ".join(
+            _observation_component_summary(component)
+            for component in components
+        )
+        return f"Observation: {label} ({component_summaries})"
+
     return f"Observation: {label}"
+
+
+def _observation_component_summary(component: Any) -> str:
+    label = _code_display(getattr(component, "code", None))
+
+    for attribute in (
+        "valueInteger",
+        "valueDecimal",
+        "valueBoolean",
+        "valueString",
+    ):
+        value = getattr(component, attribute, None)
+        if value is not None:
+            return f"{label} = {value}"
+
+    concept = getattr(component, "valueCodeableConcept", None)
+    if concept is not None:
+        return f"{label} = {_code_display(concept)}"
+
+    quantity = getattr(component, "valueQuantity", None)
+    if quantity is not None:
+        return (
+            f"{label} = {getattr(quantity, 'value', '')} "
+            f"{getattr(quantity, 'unit', '')}"
+        ).strip()
+
+    return label
 
 
 def _code_display(codeable_concept: Any) -> str:
@@ -284,12 +491,10 @@ def _code_display(codeable_concept: Any) -> str:
         return "Unknown"
 
     text = getattr(codeable_concept, "text", None)
-
     if text:
         return str(text)
 
     codings = getattr(codeable_concept, "coding", None) or []
-
     if codings:
         coding = codings[0]
         return (
@@ -306,41 +511,14 @@ def _medication_display(medication: Any) -> str:
         return "Unknown"
 
     concept = getattr(medication, "concept", None)
-
     if concept is not None:
         return _code_display(concept)
 
     reference = getattr(medication, "reference", None)
-
     if reference is not None:
         return getattr(reference, "reference", "Unknown")
 
     return "Unknown"
-
-def _collect_document_full_urls(
-    context: StrokeCaseContext,
-) -> set[str]:
-    """Collect section entries and all local resources they reference."""
-
-    selected: set[str] = set()
-
-    for section_key in SECTION_ORDER:
-        for record in context.resources_for_section(section_key):
-            selected.add(record.full_url)
-
-    if context.patient_ref:
-        selected.add(context.patient_ref)
-
-    if context.encounter_ref:
-        selected.add(context.encounter_ref)
-
-    if context.organization_ref:
-        selected.add(context.organization_ref)
-
-    return _expand_with_local_references(
-        context=context,
-        initial_full_urls=selected,
-    )
 
 
 def _expand_with_local_references(
@@ -392,7 +570,6 @@ def _extract_references_from_data(data: Any) -> set[str]:
 
     if isinstance(data, dict):
         reference_value = data.get("reference")
-
         if isinstance(reference_value, str):
             references.add(reference_value)
 
