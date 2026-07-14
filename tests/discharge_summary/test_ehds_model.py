@@ -1,9 +1,11 @@
 from scripts.discharge_summary.ehds_model import (
+    CASE_SUMMARY_FIELD_DEFINITIONS,
     CASE_SUMMARY_SOURCE_FIELDS,
     DOCUMENT_SECTION_DEFINITIONS,
     ROOT_SECTION_ORDER,
     DocumentSection,
     child_sections,
+    duplicate_case_summary_fields,
     mapped_source_fields,
     unmapped_case_summary_fields,
 )
@@ -12,6 +14,29 @@ from scripts.discharge_summary.ehds_model import (
 def test_all_case_summary_variables_are_mapped():
     assert unmapped_case_summary_fields() == ()
     assert set(CASE_SUMMARY_SOURCE_FIELDS).issubset(mapped_source_fields())
+
+
+def test_case_summary_source_list_has_no_duplicates():
+    assert duplicate_case_summary_fields() == ()
+
+
+def test_every_case_summary_variable_has_coverage_metadata():
+    assert set(CASE_SUMMARY_FIELD_DEFINITIONS) == set(
+        CASE_SUMMARY_SOURCE_FIELDS
+    )
+
+
+def test_treatment_timing_fields_have_a_dedicated_section():
+    for field in (
+        "door_to_needle",
+        "door_to_groin",
+        "door_to_door",
+    ):
+        definition = CASE_SUMMARY_FIELD_DEFINITIONS[field]
+        assert definition.document_sections == (
+            DocumentSection.TREATMENT_TIMINGS,
+        )
+        assert definition.representation == "entry"
 
 
 def test_ehds_root_section_order_is_deterministic():
@@ -33,6 +58,7 @@ def test_course_of_encounter_children_follow_ehds_model():
     assert child_sections(DocumentSection.COURSE_OF_ENCOUNTER) == (
         DocumentSection.DIAGNOSTIC_SUMMARY,
         DocumentSection.SIGNIFICANT_PROCEDURES,
+        DocumentSection.TREATMENT_TIMINGS,
         DocumentSection.MEDICAL_DEVICES,
         DocumentSection.PHARMACOTHERAPY,
         DocumentSection.SIGNIFICANT_RESULTS,
