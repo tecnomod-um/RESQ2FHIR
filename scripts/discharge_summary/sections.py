@@ -84,7 +84,7 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
         title="Diagnostic Summary",
         order=50,
         code="11535-2",
-        display="Hospital discharge diagnosis Narrative",
+        display="Hospital discharge diagnosis note",
         required=False,
         entry_types=frozenset({
             "Condition",
@@ -95,7 +95,7 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
         title="Significant Procedures",
         order=60,
         code="10185-7",
-        display="Hospital discharge procedures",
+        display="Hospital discharge procedure note",
         required=False,
         entry_types=frozenset({
             "Procedure",
@@ -105,7 +105,7 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
         title="Pharmacotherapy During Hospitalisation",
         order=70,
         code="87232-5",
-        display="Medication administration brief",
+        display="Medication administration.brief",
         required=False,
         entry_types=frozenset({
             "MedicationAdministration",
@@ -116,7 +116,7 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
         title="Significant Results",
         order=80,
         code="30954-2",
-        display="Relevant diagnostic tests/laboratory data Narrative",
+        display="Relevant diagnostic tests/laboratory data note",
         required=False,
         entry_types=frozenset({
             "Observation",
@@ -155,20 +155,9 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
             "Encounter",
         }),
     ),
-    DischargeSection.DISCHARGE_MEDICATIONS: SectionDefinition(
-        title="Discharge Medications",
-        order=120,
-        code="75311-1",
-        display="Discharge medications Narrative",
-        required=False,
-        entry_types=frozenset({
-            "MedicationRequest",
-            "MedicationStatement",
-        }),
-    ),
     DischargeSection.PLAN_OF_CARE: SectionDefinition(
         title="Plan of Care and Follow-up",
-        order=130,
+        order=120,
         code="18776-5",
         display="Plan of care note",
         required=False,
@@ -180,6 +169,18 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
             "Observation"
         }),
     ),
+    DischargeSection.DISCHARGE_MEDICATIONS: SectionDefinition(
+        title="Discharge Medications",
+        order=130,
+        code="75311-1",
+        display="Discharge medications note",
+        required=False,
+        entry_types=frozenset({
+            "MedicationRequest",
+            "MedicationStatement",
+        }),
+    ),
+
 }
 
 

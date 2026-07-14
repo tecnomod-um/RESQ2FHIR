@@ -74,9 +74,9 @@ def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_rep
             procedure_final.code = imaging_code
         
         category_coding = Coding(
-            system="http://terminology.hl7.org/CodeSystem/observation-category",
-            code="imaging",
-            display="Imaging"
+            system="http://snomed.info/sct",
+            code="103693007",
+            display="Diagnostic procedure"
         )
         category_code = CodeableConcept(coding=[category_coding])
         procedure_final.category = [category_code]

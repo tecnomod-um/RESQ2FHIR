@@ -22,7 +22,7 @@ app:
 
     # IG package(s) bundled in the application classpath that the validator will load.
     # Place the .tgz under src/main/resources/ig/ and list here (comma-separated if multiple).
-    igClasspathPackages: "classpath:/ig/RESQ-IG-6.0.1.tgz"
+    igClasspathPackages: "classpath:/ig/RESQ-IG-6.0.2.tgz"
     
     loinc:
       baseUrl: ${APP_FHIR_LOINC_BASEURL:http://hapi:8080/fhir}
