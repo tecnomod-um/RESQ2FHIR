@@ -1,8 +1,4 @@
-"""FHIR R5 document builder aligned with Xt-EHR EHDSDischargeReport.
-
-The Xt-EHR artifact defines the semantic hierarchy. The generated resource
-remains a RESQ-specific FHIR R5 Composition inside a document Bundle.
-"""
+"""FHIR R5 document builder aligned with Xt-EHR EHDSDischargeReport."""
 
 from __future__ import annotations
 
@@ -20,6 +16,9 @@ from fhir.resources.meta import Meta
 from fhir.resources.narrative import Narrative
 from fhir.resources.reference import Reference
 
+from scripts.discharge_summary.clinical_synthesis import (
+    build_clinical_synthesis_narrative,
+)
 from scripts.discharge_summary.ehds_model import (
     DOCUMENT_SECTION_DEFINITIONS,
     ROOT_SECTION_ORDER,
@@ -28,23 +27,16 @@ from scripts.discharge_summary.ehds_model import (
     DocumentSectionDefinition,
     child_sections,
 )
+from scripts.discharge_summary.narrative import build_section_narrative
 from scripts.modeling_context import StrokeCaseContext, StrokeCaseResource
 from scripts.utils import get_uuid
+
 
 LIST_EMPTY_REASON = "http://terminology.hl7.org/CodeSystem/list-empty-reason"
 RESQ_COMPOSITION_PROFILE = (
     "http://tecnomod-um.org/StructureDefinition/"
     "resq-stroke-discharge-composition"
 )
-
-EMPTY_REASON_TEXT = {
-    "nilknown": "No known information exists for this section.",
-    "notasked": "This information was not collected.",
-    "unavailable": "The information was expected but is unavailable.",
-    "notfound": "The information could not be located.",
-    "withheld": "The information is not available for disclosure.",
-}
-
 DISCHARGE_SUMMARY_TYPE = CodeableConcept(
     coding=[
         Coding(
@@ -112,6 +104,17 @@ def _build_document_section(
     section_key: DocumentSection,
 ) -> CompositionSection | None:
     definition = DOCUMENT_SECTION_DEFINITIONS[section_key]
+
+    if section_key == DocumentSection.CLINICAL_SYNTHESIS:
+        synthesis = build_clinical_synthesis_narrative(context)
+        if synthesis is None:
+            return None
+        return CompositionSection(
+            title=definition.title,
+            code=_section_code(definition),
+            text=synthesis,
+        )
+
     records = _records_for_document_section(context, definition)
     nested_sections = tuple(
         child
@@ -128,16 +131,10 @@ def _build_document_section(
 
     section = CompositionSection(
         title=definition.title,
-        code=CodeableConcept(
-            coding=[
-                Coding(
-                    system=definition.system,
-                    code=definition.code,
-                    display=definition.display,
-                )
-            ]
-        ),
-        text=_build_section_text(
+        code=_section_code(definition),
+        text=build_section_narrative(
+            context=context,
+            section_key=section_key,
             title=definition.title,
             records=records,
             children=nested_sections,
@@ -156,6 +153,18 @@ def _build_document_section(
         section.emptyReason = _build_empty_reason(definition)
 
     return section
+
+
+def _section_code(definition: DocumentSectionDefinition) -> CodeableConcept:
+    return CodeableConcept(
+        coding=[
+            Coding(
+                system=definition.system,
+                code=definition.code,
+                display=definition.display,
+            )
+        ]
+    )
 
 
 def _records_for_document_section(
@@ -194,8 +203,6 @@ def _resource_matches_codes(
     resource: Any,
     expected_codes: frozenset[CodeKey],
 ) -> bool:
-    """Return True when resource.code contains one configured system/code pair."""
-
     codeable_concept = getattr(resource, "code", None)
     for coding in getattr(codeable_concept, "coding", None) or ():
         system = getattr(coding, "system", None)
@@ -217,54 +224,6 @@ def _build_empty_reason(
                 display=definition.empty_reason_display,
             )
         ]
-    )
-
-
-def _build_section_text(
-    title: str,
-    records: tuple[StrokeCaseResource, ...],
-    children: tuple[CompositionSection, ...],
-    empty_reason: str | None,
-) -> Narrative:
-    if not records and not children:
-        message = EMPTY_REASON_TEXT.get(
-            empty_reason or "unavailable",
-            "No information is available for this section.",
-        )
-        return Narrative(
-            status="generated",
-            div=(
-                '<div xmlns="http://www.w3.org/1999/xhtml">'
-                f"<p>{html.escape(message)}</p>"
-                "</div>"
-            ),
-        )
-
-    fragments: list[str] = []
-    if records:
-        items = "".join(
-            f"<li>{html.escape(_resource_summary(record.resource))}</li>"
-            for record in records
-        )
-        fragments.append(f"<ul>{items}</ul>")
-    if children:
-        child_items = "".join(
-            f"<li>{html.escape(str(child.title))}</li>"
-            for child in children
-        )
-        fragments.append(
-            "<p>Structured subsections:</p>"
-            f"<ul>{child_items}</ul>"
-        )
-
-    return Narrative(
-        status="generated",
-        div=(
-            '<div xmlns="http://www.w3.org/1999/xhtml">'
-            f"<h2>{html.escape(title)}</h2>"
-            f"{''.join(fragments)}"
-            "</div>"
-        ),
     )
 
 
@@ -334,145 +293,6 @@ def _composition_entry_references(composition: Composition) -> set[str]:
 
     visit(composition.section)
     return references
-
-
-def _resource_summary(resource: Any) -> str:
-    resource_type = resource.get_resource_type()
-    if resource_type == "Condition":
-        return f"Condition: {_code_display(resource.code)}"
-    if resource_type == "Observation":
-        return _observation_summary(resource)
-    if resource_type == "Procedure":
-        return (
-            f"Procedure: {_code_display(resource.code)} "
-            f"({getattr(resource, 'status', None)})"
-        )
-    if resource_type == "MedicationRequest":
-        return f"Discharge medication: {_medication_display(resource.medication)}"
-    if resource_type == "MedicationAdministration":
-        return (
-            "Medication administration: "
-            f"{_medication_display(resource.medication)} "
-            f"({getattr(resource, 'status', None)})"
-        )
-    if resource_type == "MedicationStatement":
-        return f"Medication statement: {_medication_display(resource.medication)}"
-    if resource_type == "DiagnosticReport":
-        return f"Diagnostic report: {_code_display(resource.code)}"
-    if resource_type == "Encounter":
-        return _encounter_summary(resource)
-    if resource_type == "Location":
-        return "Care location"
-    if resource_type == "Appointment":
-        return "Follow-up appointment"
-    if resource_type == "CarePlan":
-        return "Care plan"
-    if resource_type == "ServiceRequest":
-        return f"Service request: {_code_display(resource.code)}"
-    if resource_type == "AllergyIntolerance":
-        return f"Allergy or intolerance: {_code_display(resource.code)}"
-    if resource_type == "Flag":
-        return f"Medical alert: {_code_display(resource.code)}"
-    if resource_type in {"Device", "DeviceAssociation"}:
-        return "Medical device or implant"
-    return resource_type
-
-
-def _encounter_summary(resource: Any) -> str:
-    period = getattr(resource, "actualPeriod", None)
-    start = getattr(period, "start", None) if period else None
-    end = getattr(period, "end", None) if period else None
-    if start or end:
-        return f"Encounter: {start or 'unknown'} to {end or 'unknown'}"
-    return "Encounter information"
-
-
-def _observation_summary(resource: Any) -> str:
-    label = _code_display(resource.code)
-    for attribute in (
-        "valueInteger",
-        "valueDecimal",
-        "valueBoolean",
-        "valueString",
-    ):
-        value = getattr(resource, attribute, None)
-        if value is not None:
-            return f"Observation: {label} = {value}"
-
-    concept = getattr(resource, "valueCodeableConcept", None)
-    if concept is not None:
-        return f"Observation: {label} = {_code_display(concept)}"
-
-    quantity = getattr(resource, "valueQuantity", None)
-    if quantity is not None:
-        return (
-            f"Observation: {label} = "
-            f"{getattr(quantity, 'value', '')} "
-            f"{getattr(quantity, 'unit', '')}"
-        ).strip()
-
-    components = getattr(resource, "component", None) or ()
-    if components:
-        values = ", ".join(
-            _observation_component_summary(component)
-            for component in components
-        )
-        return f"Observation: {label} ({values})"
-    return f"Observation: {label}"
-
-
-def _observation_component_summary(component: Any) -> str:
-    label = _code_display(getattr(component, "code", None))
-    for attribute in (
-        "valueInteger",
-        "valueDecimal",
-        "valueBoolean",
-        "valueString",
-    ):
-        value = getattr(component, attribute, None)
-        if value is not None:
-            return f"{label} = {value}"
-
-    concept = getattr(component, "valueCodeableConcept", None)
-    if concept is not None:
-        return f"{label} = {_code_display(concept)}"
-
-    quantity = getattr(component, "valueQuantity", None)
-    if quantity is not None:
-        return (
-            f"{label} = {getattr(quantity, 'value', '')} "
-            f"{getattr(quantity, 'unit', '')}"
-        ).strip()
-    return label
-
-
-def _code_display(codeable_concept: Any) -> str:
-    if codeable_concept is None:
-        return "Unknown"
-    text = getattr(codeable_concept, "text", None)
-    if text:
-        return str(text)
-    codings = getattr(codeable_concept, "coding", None) or []
-    if codings:
-        coding = codings[0]
-        return (
-            getattr(coding, "display", None)
-            or getattr(coding, "code", None)
-            or "Unknown"
-        )
-    return "Unknown"
-
-
-def _medication_display(medication: Any) -> str:
-    if medication is None:
-        return "Unknown"
-    concept = getattr(medication, "concept", None)
-    if concept is not None:
-        return _code_display(concept)
-    reference = getattr(medication, "reference", None)
-    if reference is not None:
-        return getattr(reference, "reference", "Unknown")
-    return "Unknown"
 
 
 def _expand_with_local_references(
