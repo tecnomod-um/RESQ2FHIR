@@ -96,6 +96,13 @@ def build_discharge_composition(context: StrokeCaseContext) -> Composition:
         ],
     )
     composition.text = _build_composition_text(composition)
+
+    # Resource.language does not automatically propagate into Narrative.div.
+    # FHIR validation requires both XHTML language attributes when language is set.
+    _apply_narrative_language(
+        composition,
+        str(composition.language or "en"),
+    )
     return composition
 
 
@@ -104,13 +111,14 @@ def _build_document_section(
     section_key: DocumentSection,
 ) -> CompositionSection | None:
     definition = DOCUMENT_SECTION_DEFINITIONS[section_key]
+    title = _profile_section_title(section_key, definition.title)
 
     if section_key == DocumentSection.CLINICAL_SYNTHESIS:
         synthesis = build_clinical_synthesis_narrative(context)
         if synthesis is None:
             return None
         return CompositionSection(
-            title=definition.title,
+            title=title,
             code=_section_code(definition),
             text=synthesis,
         )
@@ -130,12 +138,12 @@ def _build_document_section(
         return None
 
     section = CompositionSection(
-        title=definition.title,
+        title=title,
         code=_section_code(definition),
         text=build_section_narrative(
             context=context,
             section_key=section_key,
-            title=definition.title,
+            title=title,
             records=records,
             children=nested_sections,
             empty_reason=None if has_content else definition.empty_reason,
@@ -153,6 +161,17 @@ def _build_document_section(
         section.emptyReason = _build_empty_reason(definition)
 
     return section
+
+
+def _profile_section_title(
+    section_key: DocumentSection,
+    configured_title: str,
+) -> str:
+    """Return titles exactly as fixed by the published Composition profile."""
+
+    if section_key == DocumentSection.COURSE_OF_ENCOUNTER:
+        return "Hospital Course"
+    return configured_title
 
 
 def _section_code(definition: DocumentSectionDefinition) -> CodeableConcept:
@@ -236,6 +255,46 @@ def _build_composition_text(composition: Composition) -> Narrative:
             "</div>"
         ),
     )
+
+
+def _apply_narrative_language(
+    composition: Composition,
+    language: str,
+) -> None:
+    """Add lang and xml:lang to every XHTML narrative in the Composition."""
+
+    escaped_language = html.escape(language, quote=True)
+
+    def update(narrative: Narrative | None) -> None:
+        if narrative is None or not narrative.div:
+            return
+
+        div = str(narrative.div)
+        opening_end = div.find(">")
+        if opening_end < 0:
+            return
+
+        opening_tag = div[:opening_end]
+        attributes: list[str] = []
+        if " lang=" not in opening_tag:
+            attributes.append(f' lang="{escaped_language}"')
+        if " xml:lang=" not in opening_tag:
+            attributes.append(f' xml:lang="{escaped_language}"')
+
+        if attributes:
+            narrative.div = (
+                opening_tag
+                + "".join(attributes)
+                + div[opening_end:]
+            )
+
+    def visit(sections: Iterable[CompositionSection] | None) -> None:
+        for section in sections or ():
+            update(getattr(section, "text", None))
+            visit(getattr(section, "section", None))
+
+    update(composition.text)
+    visit(composition.section)
 
 
 def build_discharge_document_bundle(context: StrokeCaseContext) -> Bundle:
