@@ -51,7 +51,7 @@ def test_composition_uses_ehds_hierarchy():
     composition = build_discharge_composition(context)
     course = _section_by_title(
         composition.section,
-        "Course of Encounter",
+        "Hospital Course",
     )
     discharge = _section_by_title(
         composition.section,
@@ -82,7 +82,7 @@ def test_missing_core_information_is_explicitly_represented():
     devices = _section_by_title(
         _section_by_title(
             composition.section,
-            "Course of Encounter",
+            "Hospital Course",
         ).section,
         "Medical Devices and Implants",
     )
@@ -108,6 +108,30 @@ def test_encounter_is_present_in_encounter_and_discharge_sections():
     assert discharge_details.entry[0].reference == expected
 
 
+def test_generated_xhtml_has_language_attributes_recursively():
+    composition = build_discharge_composition(_minimal_context())
+
+    narratives = [composition.text]
+
+    def collect(sections):
+        for section in sections or ():
+            narratives.append(section.text)
+            collect(section.section)
+
+    collect(composition.section)
+
+    for narrative in narratives:
+        assert 'lang="en"' in narrative.div
+        assert 'xml:lang="en"' in narrative.div
+
+
+def test_hospital_course_title_matches_fixed_profile_value():
+    composition = build_discharge_composition(_minimal_context())
+    course = _section_by_title(composition.section, "Hospital Course")
+
+    assert course.title == "Hospital Course"
+
+
 def test_treatment_timing_observation_is_selected_by_code():
     context = _minimal_context()
     timing_ref = context.add_resource(
@@ -129,7 +153,7 @@ def test_treatment_timing_observation_is_selected_by_code():
     composition = build_discharge_composition(context)
     course = _section_by_title(
         composition.section,
-        "Course of Encounter",
+        "Hospital Course",
     )
     timings = _section_by_title(course.section, "Treatment Timings")
 
@@ -159,7 +183,7 @@ def test_non_case_summary_timing_metric_is_not_selected():
     composition = build_discharge_composition(context)
     course = _section_by_title(
         composition.section,
-        "Course of Encounter",
+        "Hospital Course",
     )
 
     assert all(
