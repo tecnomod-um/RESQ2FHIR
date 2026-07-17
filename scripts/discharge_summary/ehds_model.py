@@ -143,7 +143,7 @@ DOCUMENT_SECTION_DEFINITIONS: dict[
         ),
     ),
     D.COURSE_OF_ENCOUNTER: _definition(
-        "Course of Encounter", 60, LOINC, "8648-8",
+        "Hospital Course", 60, LOINC, "8648-8",
         "Hospital course note", True, "body.courseOfEncounter",
     ),
     D.DIAGNOSTIC_SUMMARY: _definition(
