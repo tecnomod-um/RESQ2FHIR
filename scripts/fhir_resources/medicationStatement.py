@@ -32,7 +32,7 @@ def build_before_onset_medicationStatement_profile(medications_list: list, patie
     Returns:
         List of MedicationStatement resources
         
-    Profile: http://tecnomod-um.org/StructureDefinition/prior-medication-statement-profile
+    Profile: http://qualityregistry.org/StructureDefinition/prior-medication-statement-profile
     """
 
     final_medication_lists = []
@@ -59,7 +59,7 @@ def build_before_onset_medicationStatement_profile(medications_list: list, patie
                 medication=code_med_bom,
                 encounter=Reference(reference=encounter_ref),
                 adherence=MedicationStatementAdherence(code=adherence_codeable),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/prior-medication-statement-profile"])
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/prior-medication-statement-profile"])
             )
 
             if intracerebral_hemorrhage and bom in [Medications.RIVAROXABAN, Medications.DABIGATRAN, Medications.APIXABAN, Medications.EDOXABAN]: 

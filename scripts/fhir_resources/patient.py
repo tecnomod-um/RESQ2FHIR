@@ -29,7 +29,7 @@ def build_Patient(patient_id: str, patient_sex: Sex | None) -> Patient:
     if patient_sex is not None:
         try:
             extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/gender-snomed-ext",
+                url="http://qualityregistry.org/StructureDefinition/gender-snomed-ext",
                 valueCodeableConcept=CodeableConcept(coding=[patient_sex.to_coding()])
             ))
         except Exception as e:

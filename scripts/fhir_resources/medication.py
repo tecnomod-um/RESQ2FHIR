@@ -19,7 +19,7 @@ def build_tenecteplase_brand_medication(tenecteplase_brand: TenecteplaseBrand ) 
 
     medication = Medication()
     medication.code = CodeableConcept(coding=[tenecteplase_brand.to_coding()])
-    medication.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/tenecteplase-brand-medication-profile"])
+    medication.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/tenecteplase-brand-medication-profile"])
 
     ingredient = MedicationIngredient(isActive=True, item= CodeableReference(concept=CodeableConcept(coding=[Medications.TENECTEPLASE.to_coding()])))
     medication.ingredient = [ingredient]
