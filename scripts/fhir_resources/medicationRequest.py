@@ -26,7 +26,7 @@ def build_on_discharge_medicationRequest_profile(on_discharge_meds: list, patien
     Returns:
         List of MedicationRequest resources
         
-    Profile: http://tecnomod-um.org/StructureDefinition/discharge-medication-request-profile
+    Profile: http://qualityregistry.org/StructureDefinition/discharge-medication-request-profile
     Status: active
     Intent: order
     Category: Community
@@ -59,7 +59,7 @@ def build_on_discharge_medicationRequest_profile(on_discharge_meds: list, patien
             subject=Reference(reference=patient_ref),
             encounter=Reference(reference=encounter_ref),
             medication=code_med_bom,
-            meta=Meta(profile =["http://tecnomod-um.org/StructureDefinition/discharge-medication-request-profile"])
+            meta=Meta(profile =["http://qualityregistry.org/StructureDefinition/discharge-medication-request-profile"])
         )
         final_medication_lists.append(medication_request)
     

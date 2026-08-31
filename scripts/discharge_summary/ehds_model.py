@@ -15,11 +15,11 @@ from scripts.enum_models import DischargeSection
 LOINC = "http://loinc.org"
 SNOMED_CT = "http://snomed.info/sct"
 LOCAL_SECTION_SYSTEM = (
-    "http://tecnomod-um.org/CodeSystem/"
+    "http://qualityregistry.org/CodeSystem/"
     "stroke-discharge-summary-section-cs"
 )
 TIMING_METRIC_SYSTEM = (
-    "http://tecnomod-um.org/CodeSystem/timing-metric-codes-cs"
+    "http://qualityregistry.org/CodeSystem/timing-metric-codes-cs"
 )
 EHDS_DISCHARGE_REPORT = (
     "http://www.xt-ehr.eu/fhir/models/StructureDefinition/"

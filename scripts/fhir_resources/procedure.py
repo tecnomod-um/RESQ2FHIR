@@ -87,7 +87,7 @@ def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_rep
             post_acute_care_code = CodeableConcept(coding=[PostAcuteCare.FALSE.to_coding()])
 
         extension_list = [Extension(
-            url="http://tecnomod-um.org/StructureDefinition/procedure-timing-context-ext",
+            url="http://qualityregistry.org/StructureDefinition/procedure-timing-context-ext",
             valueCodeableConcept=post_acute_care_code
         )]
         
@@ -117,14 +117,14 @@ def build_carotid_imaging_procedure(patient_ref: str, encounter_ref: str, diagno
     procedure = Procedure(status="completed", 
                           subject=Reference(reference=patient_ref),
                           encounter=Reference(reference=encounter_ref),
-                          meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-carotid-imaging-procedure-profile"])
+                          meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-carotid-imaging-procedure-profile"])
                           )
 
 
     code_carotid = CodeableConcept(coding=[ImagingType.CAROTID.to_coding()])
         
     extension_list = [Extension(
-        url="http://tecnomod-um.org/StructureDefinition/post-acute-care-required-ext",
+        url="http://qualityregistry.org/StructureDefinition/post-acute-care-required-ext",
         valueBoolean=True
     )]
     
@@ -163,14 +163,14 @@ def build_endarterectomy_procedure(patient_ref: str, encounter_ref: str, diagnos
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         status="completed",
-        meta=Meta(profile = ["http://tecnomod-um.org/StructureDefinition/stroke-carotid-endarterectomy-procedure-profile"]),
+        meta=Meta(profile = ["http://qualityregistry.org/StructureDefinition/stroke-carotid-endarterectomy-procedure-profile"]),
         report = [Reference(reference=diagnostic_report_ref)])
     
     code_endarterectomy = CodeableConcept(coding=[PerforationProcedures.ENDARTERECTOMY.to_coding()])
     
     
     extension_list = [Extension(
-        url="http://tecnomod-um.org/StructureDefinition/post-acute-care-required-ext",
+        url="http://qualityregistry.org/StructureDefinition/post-acute-care-required-ext",
         valueBoolean=True
     )]
     
@@ -219,7 +219,7 @@ def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, p
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref)
     )
-    procedure.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-swallow-procedure-profile"])
+    procedure.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-swallow-procedure-profile"])
     
     if swallowing_screening_done is SwallowingScreeningDone.YES:
         if swallowing_screening_type is not None:
@@ -249,13 +249,13 @@ def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, p
     if swallowing_screening_timing is not None:
          swallowing_screening_timing_coding = swallowing_screening_timing.to_coding()
          timing_ext = Extension(
-            url="http://tecnomod-um.org/StructureDefinition/procedure-timing-context-ext",
+            url="http://qualityregistry.org/StructureDefinition/procedure-timing-context-ext",
             valueCodeableConcept=CodeableConcept(coding=[swallowing_screening_timing_coding])
          )
          extension_list.append(timing_ext)
         
     extension_list.append(Extension(
-        url="http://tecnomod-um.org/StructureDefinition/post-acute-care-required-ext",
+        url="http://qualityregistry.org/StructureDefinition/post-acute-care-required-ext",
         valueBoolean=True
     ))
     
@@ -288,7 +288,7 @@ def build_thrombolysis_procedure(patient_ref: str, encounter_ref: str, condition
         encounter=Reference(reference=encounter_ref),
         reason=[CodeableReference(reference=Reference(reference=condition_ref))]
     )
-    procedure.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-mechanical-procedure-profile"])
+    procedure.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-mechanical-procedure-profile"])
     
     thrombolysis_coding = PerforationProcedures.THROMBOLYSIS.to_coding()
     procedure.code = CodeableConcept(coding=[thrombolysis_coding])
@@ -300,7 +300,7 @@ def build_thrombolysis_procedure(patient_ref: str, encounter_ref: str, condition
         post_acute_care_coding = PostAcuteCare.FALSE.to_coding()
         code_post_acute = CodeableConcept(coding=[post_acute_care_coding])
         extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/procedure-timing-context-ext",
+            url="http://qualityregistry.org/StructureDefinition/procedure-timing-context-ext",
             valueCodeableConcept=code_post_acute
         ))
     
@@ -357,7 +357,7 @@ def build_thrombectomy_procedure(thrombectomy: bool, post_acute_care: bool, pati
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref)
     )
-    procedure.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-mechanical-procedure-profile"])
+    procedure.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-mechanical-procedure-profile"])
     
     
     code_thrombectomy = CodeableConcept(coding=[PerforationProcedures.THROMBECTOMY.to_coding()])
@@ -366,7 +366,7 @@ def build_thrombectomy_procedure(thrombectomy: bool, post_acute_care: bool, pati
     extension_list = []
 
     extension_list.append(Extension(
-        url="http://tecnomod-um.org/StructureDefinition/post-acute-care-required-ext",
+        url="http://qualityregistry.org/StructureDefinition/post-acute-care-required-ext",
         valueBoolean = post_acute_care
     ))
     
@@ -482,7 +482,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.VTE_INTERVENTION.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             )]
     else:
         procedure_list = []
@@ -492,7 +492,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.STOCKINGS.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_ipc is True:
             procedure_list.append(Procedure(
@@ -500,7 +500,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.IPC.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_lmwh is True:
             procedure_list.append(Procedure(
@@ -508,7 +508,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.LMWH.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_other is True:
             procedure_list.append(Procedure(
@@ -516,7 +516,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.OTHER.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_ufh is True:
             procedure_list.append(Procedure(
@@ -524,7 +524,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.UFH.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_vfp is True:
             procedure_list.append(Procedure(
@@ -532,7 +532,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.VFP.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_warfarin is True:
             procedure_list.append(Procedure(
@@ -540,7 +540,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.VTE_WARFARIN.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
         if vte_xa_inhibitor is True:
             procedure_list.append(Procedure(
@@ -548,7 +548,7 @@ def build_vte_procedure(patient_ref: str, encounter_ref: str, thromboembolism_pr
                 code=CodeableConcept(coding=[VteProcedures.XA_INHIBITOR.to_coding()]),
                 subject=Reference(reference=patient_ref),
                 encounter=Reference(reference=encounter_ref),
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-vte-procedure-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-vte-procedure-profile"]),
             ))
     return procedure_list
 
@@ -578,7 +578,7 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code=CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_hematoma_evacuation = Procedure(
@@ -587,7 +587,7 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code=CodeableConcept(coding=[IchTreatment.HEMATOMA_EVACUATION.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_open_craniectomy = Procedure(
@@ -596,7 +596,7 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code=CodeableConcept(coding=[IchTreatment.OPEN_CRANIECTOMY.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     
@@ -606,7 +606,7 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code=CodeableConcept(coding=[IchTreatment.STEREOTACTIC_ASPIRATION.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     
     procedure_ventricular_drainage = Procedure(
@@ -615,7 +615,7 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code=CodeableConcept(coding=[IchTreatment.VENTRICULAR_DRAINAGE.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_min_invasive = Procedure(
@@ -624,7 +624,7 @@ def build_ich_treatment_procedure( patient_ref: str, encounter_ref: str, conditi
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code=CodeableConcept(coding=[IchTreatment.MIN_INVASIVE.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     
 
@@ -680,7 +680,7 @@ def build_sah_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code = CodeableConcept(coding=[IchTreatment.CLIPPING.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     procedure_coiling = Procedure(
         status="not-done",
@@ -688,7 +688,7 @@ def build_sah_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code = CodeableConcept(coding=[IchTreatment.COILING.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     procedure_craniectomy = Procedure(
         status="not-done",
@@ -696,7 +696,7 @@ def build_sah_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code = CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     procedure_drainage = Procedure(
         status="not-done",
@@ -704,7 +704,7 @@ def build_sah_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code = CodeableConcept(coding=[IchTreatment.VENTRICULAR_DRAINAGE.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
     procedure_other = Procedure(
         status="not-done",
@@ -712,7 +712,7 @@ def build_sah_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code = CodeableConcept(coding=[IchTreatment.OTHER.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     
@@ -759,7 +759,7 @@ def build_cvt_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code= CodeableConcept(coding=[IchTreatment.CRANIECTOMY.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_thrombectomy = Procedure(
@@ -768,7 +768,7 @@ def build_cvt_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code= CodeableConcept(coding=[PerforationProcedures.THROMBECTOMY.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_thrombolysis = Procedure(
@@ -777,7 +777,7 @@ def build_cvt_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code= CodeableConcept(coding=[PerforationProcedures.THROMBOLYSIS.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"])
     )
 
     procedure_anticoagulation = Procedure(
@@ -786,7 +786,7 @@ def build_cvt_treatment_procedure(patient_ref: str, encounter_ref: str, conditio
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=condition_ref))],
         code= CodeableConcept(coding=[IchTreatment.ANTICOAGULATION.to_coding()]),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-treatment-procedure-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-treatment-procedure-profile"]),
         partOf=[Reference(reference=condition_ref)]
     )
 
@@ -922,7 +922,7 @@ def build_physioterapy_procedure(patient_ref: str, encounter_ref: str, physiothe
         physiotherapy_procedure.statusReason = code_status_reason
 
     physiotherapy_procedure.extension = [Extension(
-        url="http://tecnomod-um.org/StructureDefinition/procedure-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/procedure-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.POST_STROKE.to_coding()])
     )]
 
@@ -956,7 +956,7 @@ def build_occupational_therapy_procedure(patient_ref: str, encounter_ref: str, o
         occupational_therapy_procedure.statusReason = code_status_reason
     
     occupational_therapy_procedure.extension = [Extension(
-        url="http://tecnomod-um.org/StructureDefinition/procedure-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/procedure-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.POST_STROKE.to_coding()])
     )]
     
@@ -990,7 +990,7 @@ def build_speech_therapy_procedure(patient_ref: str, encounter_ref: str, speech_
         speech_therapy_procedure.statusReason = code_status_reason
 
     speech_therapy_procedure.extension = [Extension(
-        url="http://tecnomod-um.org/StructureDefinition/procedure-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/procedure-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.POST_STROKE.to_coding()])
     )]
 
@@ -1019,7 +1019,7 @@ def build_smoking_cessation_procedure(patient_ref: str, encounter_ref: str, smok
         smoking_cessation_procedure.statusReason = code_status_reason
 
     smoking_cessation_procedure.extension = [Extension(
-        url="http://tecnomod-um.org/StructureDefinition/procedure-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/procedure-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.POST_STROKE.to_coding()])
     )]
 
@@ -1051,7 +1051,7 @@ def build_hydrocephalus_shunt_procedure(patient_ref: str, encounter_ref: str, co
         hydrocephalus_shunt_procedure.statusReason = code_status_reason
 
     hydrocephalus_shunt_procedure.extension = [Extension(
-        url="http://tecnomod-um.org/StructureDefinition/procedure-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/procedure-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.POST_STROKE.to_coding()])
     )]
 

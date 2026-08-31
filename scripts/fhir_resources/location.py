@@ -41,7 +41,7 @@ def build_hospitalized_location(hospitalized_in: HospitalizedIn, admission_depar
             display=hospitalized_in.display
         )
     extensionCode = CodeableConcept(coding=[coding_hospitalized_in])
-    loc.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/hospitalized-location-profile"])
+    loc.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/hospitalized-location-profile"])
 
     coding_admission_department = Coding(
             system=admission_department.system,
@@ -54,7 +54,7 @@ def build_hospitalized_location(hospitalized_in: HospitalizedIn, admission_depar
     extension_list = []        
     # Create extension url 
     extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/initial-care-intensity-ext",
+                url="http://qualityregistry.org/StructureDefinition/initial-care-intensity-ext",
                 valueCodeableConcept=extensionCode
             ))
     loc.extension = extension_list

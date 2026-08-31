@@ -108,24 +108,24 @@ def build_medicationAdministration(patient_ref: str, encounter_ref: str, medicat
     if medication_post_acute is not None:
         if medication_post_acute is True or medication_post_acute is PostAcuteCare.TRUE:
             extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/required-post-acute-care-ext",
+                url="http://qualityregistry.org/StructureDefinition/required-post-acute-care-ext",
                 valueBoolean=True
             ))
         elif medication_post_acute is False or medication_post_acute is PostAcuteCare.FALSE:
             extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/required-post-acute-care-ext",
+                url="http://qualityregistry.org/StructureDefinition/required-post-acute-care-ext",
                 valueBoolean=False
             ))
         elif medication_post_acute is None:
             extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/required-post-acute-care-ext",
+                url="http://qualityregistry.org/StructureDefinition/required-post-acute-care-ext",
                 valueBoolean=False
             ))
 
 
     if medication_range_timing is not None:
         extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/assessment-timing-ext",
+            url="http://qualityregistry.org/StructureDefinition/assessment-timing-ext",
             valueCodeableConcept=medication_range_timing
         ))
 
@@ -164,7 +164,7 @@ def build_medicationAdministration_paracetamol_on_fever(patient_ref:str, encount
         status="completed",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/paracetamol-on-fever-medication-administration-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/paracetamol-on-fever-medication-administration-profile"]),
         medication = CodeableReference(concept=CodeableConcept(coding=[Medications.PARACETAMOL.to_coding()])),
         occurencePeriod=period
         )
@@ -172,7 +172,7 @@ def build_medicationAdministration_paracetamol_on_fever(patient_ref:str, encount
     extension_list = []
 
     if medication_range_timing is not None:
-        extension_list.append(Extension(url = "http://tecnomod-um.org/StructureDefinition/assessment-timing-ext", valueCodeableConcept=CodeableConcept(coding=[medication_range_timing.to_coding()])))
+        extension_list.append(Extension(url = "http://qualityregistry.org/StructureDefinition/assessment-timing-ext", valueCodeableConcept=CodeableConcept(coding=[medication_range_timing.to_coding()])))
         medicationAdministration.extension = extension_list
 
     # Add extension to link to the fever observation
@@ -210,7 +210,7 @@ def build_insulin_on_hyperglycemia(patient_ref:str, encounter_ref:str, observati
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         reason = [CodeableReference(reference=Reference(reference=observation_ref))],
-        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/insulin-on-hyperglycemia-medication-administration-profile"]),
+        meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/insulin-on-hyperglycemia-medication-administration-profile"]),
         medication = CodeableReference(concept=CodeableConcept(coding=[Medications.INSULIN.to_coding()])),
         occurencePeriod=period,
         )
@@ -218,7 +218,7 @@ def build_insulin_on_hyperglycemia(patient_ref:str, encounter_ref:str, observati
 
     extension_list = []
     if insulin_timing is not None:
-        extension_list.append(Extension(url = "http://tecnomod-um.org/StructureDefinition/assessment-timing-ext", valueCodeableConcept=CodeableConcept(coding=[insulin_timing.to_coding()])))
+        extension_list.append(Extension(url = "http://qualityregistry.org/StructureDefinition/assessment-timing-ext", valueCodeableConcept=CodeableConcept(coding=[insulin_timing.to_coding()])))
         medicationAdministration.extension = extension_list
 
     return medicationAdministration
@@ -260,7 +260,7 @@ def build_medicationAdministration_nimopidine(patient_ref:str, encounter_ref:str
         status="completed",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/nimodipine-medication-administration-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/nimodipine-medication-administration-profile"]),
         medication=CodeableReference(concept=CodeableConcept(coding=[Medications.NIMODIPINE.to_coding()])),
         occurencePeriod=period
         )
@@ -309,7 +309,7 @@ def build_medicationAdministration_anticoagulantReversal(patient_ref:str, encoun
 
     medicationAdministration = MedicationAdministration(
         status="completed",
-        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/anticoagulant-reversal-medication-administration-profile"]),
+        meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/anticoagulant-reversal-medication-administration-profile"]),
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         medication=CodeableReference(concept=CodeableConcept(coding=[medication.to_coding()])),
@@ -348,7 +348,7 @@ def build_medicationAdministration_anticoagulantReversal(patient_ref:str, encoun
 
     medicationAdministration = MedicationAdministration(
         status="completed",
-        meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/anticoagulant-reversal-medication-administration-profile"]),
+        meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/anticoagulant-reversal-medication-administration-profile"]),
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         medication=CodeableReference(concept=CodeableConcept(coding=[medication.to_coding()]))

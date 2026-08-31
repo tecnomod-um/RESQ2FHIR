@@ -34,7 +34,7 @@ from scripts.utils import get_uuid
 
 LIST_EMPTY_REASON = "http://terminology.hl7.org/CodeSystem/list-empty-reason"
 RESQ_COMPOSITION_PROFILE = (
-    "http://tecnomod-um.org/StructureDefinition/"
+    "http://qualityregistry.org/StructureDefinition/"
     "resq-stroke-discharge-composition"
 )
 DISCHARGE_SUMMARY_TYPE = CodeableConcept(

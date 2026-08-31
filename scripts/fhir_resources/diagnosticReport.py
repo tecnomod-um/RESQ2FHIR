@@ -55,7 +55,7 @@ def build_mechanical_thrombectomy_diagnostic_report(patient_ref: str, encounter_
         encounter=Reference(reference=encounter_ref),
         code=CodeableConcept(coding=[PerforationProcedures.THROMBECTOMY.to_coding()]),
         result=[Reference(reference=mtici_score_ref)],
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/mechanical-thrombectomy-diagnostic-report-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/mechanical-thrombectomy-diagnostic-report-profile"])
     )
     
     return diagnostic_report

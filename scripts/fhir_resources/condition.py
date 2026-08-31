@@ -93,12 +93,12 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
     if stroke_type == StrokeType.ISCHEMIC:
         if stroke_etiology_known is True and stroke_etiology is not None:
             extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/ischemic-stroke-etiology-ext",
+            url="http://qualityregistry.org/StructureDefinition/ischemic-stroke-etiology-ext",
             valueCodeableConcept=CodeableConcept(coding=[stroke_etiology.to_coding()])
         ))
         else:
             extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/ischemic-stroke-etiology-ext",
+            url="http://qualityregistry.org/StructureDefinition/ischemic-stroke-etiology-ext",
             valueCodeableConcept=CodeableConcept(coding=[StrokeEtiology.UNDETERMINED.to_coding()])
         ))
 
@@ -109,16 +109,16 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
         if bleeding_reason_found is True and bleeding_reasons:
             for bleeding_reason in bleeding_reasons:
                 extension_list.append(Extension(
-                    url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
+                    url="http://qualityregistry.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
                     valueCodeableConcept=CodeableConcept(coding=[bleeding_reason.to_coding()])
                 ))
         else:
             extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
+            url="http://qualityregistry.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
             valueCodeableConcept=CodeableConcept(coding=[BleedingReason.UNDETERMINED.to_coding()])
             ))
     # Profile + optional extensions
-    condition.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-diagnosis-condition-profile"])
+    condition.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-diagnosis-condition-profile"])
 
 
     
@@ -129,7 +129,7 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
     if stroke_etiology_known is True:
         if stroke_etiology is not None:
             extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/ischemic-stroke-etiology-ext",
+                url="http://qualityregistry.org/StructureDefinition/ischemic-stroke-etiology-ext",
                 valueCodeableConcept=CodeableConcept(coding=[stroke_etiology.to_coding()])
             ))
 
@@ -138,7 +138,7 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
         if bleeding_reasons:
             for bleeding_reason in bleeding_reasons:
                 extension_list.append(Extension(
-                    url="http://tecnomod-um.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
+                    url="http://qualityregistry.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
                     valueCodeableConcept=CodeableConcept(coding=[bleeding_reason.to_coding()])
                 ))
 
@@ -152,7 +152,7 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
                 condition.onsetDateTime = parse_datetime(onset_timestamp)
 
     extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/wakeup-stroke-ext",
+            url="http://qualityregistry.org/StructureDefinition/wakeup-stroke-ext",
             valueBoolean=wakeup_stroke
         ))
 
@@ -185,7 +185,7 @@ def build_risk_factor_condition_profile(risk_factors: list, patient_ref: str, en
             condition = Condition(
                 subject=Reference(reference=patient_ref),
                 code=code_rf,
-                meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-risk-factor-condition-profile"]),
+                meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-risk-factor-condition-profile"]),
                 clinicalStatus=code_status,
                 encounter=Reference(reference=encounter_ref),
             )
@@ -287,7 +287,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.SEPSIS.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(sepsis_condition)
         if post_stroke_dvt is True:
@@ -296,7 +296,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.DVT.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(dvt_condition)
 
@@ -306,7 +306,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.FALLING.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(falling_condition)
         if post_stroke_other is True:
@@ -315,7 +315,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.OTHER.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(other_condition)
         if post_stroke_pressure_sores is True:
@@ -324,7 +324,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.SORES.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(sores_condition)
         if post_stroke_recurrence is True:
@@ -333,7 +333,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.RECURRENT.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(recurrence_condition)
         if post_stroke_urinary_infection is True:
@@ -342,7 +342,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.URINARY_INFECTION.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(urinary_infection_condition)
 
@@ -352,7 +352,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.PNEUMONIA.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(pneumonia_condition)
 
@@ -362,7 +362,7 @@ def build_post_stroke_conditions(patient_ref:str, encounter_ref:str, post_stroke
                 encounter=Reference(reference=encounter_ref),
                 code = CodeableConcept(coding=[PostStrokeComplications.PULMONARY_EMBOLISM.to_coding()]),
                 clinicalStatus = CodeableConcept(coding=[ClinicalStatusCodes.ACTIVE.to_coding()]),
-                meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/post-stroke-complication-condition-profile"])
+                meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/post-stroke-complication-condition-profile"])
             )
             condition_list.append(pulmonary_embolism_condition)
 

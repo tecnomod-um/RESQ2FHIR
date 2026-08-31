@@ -56,7 +56,7 @@ def build_stroke_encounter_profile(
         Encounter resource for stroke care 
     """
     encounter = Encounter(status="completed", subject=Reference(reference=patient_ref))
-    encounter.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-encounter-profile"])
+    encounter.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-encounter-profile"])
 
     # Obtain discharge destination and arrival mode
     
@@ -92,7 +92,7 @@ def build_stroke_encounter_profile(
 
     
     extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/first-hospital-ext",
+            url="http://qualityregistry.org/StructureDefinition/first-hospital-ext",
             valueReference=Reference(reference=first_hospital_ref)
         ))
     
@@ -100,7 +100,7 @@ def build_stroke_encounter_profile(
 
     if discharge_facility_type is not None:
         extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/discharge-facility-type-ext",
+            url="http://qualityregistry.org/StructureDefinition/discharge-facility-type-ext",
             valueCodeableConcept=CodeableConcept(
                 coding=[discharge_facility_type.to_coding()]
             )
@@ -108,7 +108,7 @@ def build_stroke_encounter_profile(
 
     if discharge_facility_department is not None:
         extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/discharge-department-service-ext",
+            url="http://qualityregistry.org/StructureDefinition/discharge-department-service-ext",
             valueCodeableConcept=CodeableConcept(
                 coding=[discharge_facility_department.to_coding()]
             )
@@ -116,23 +116,23 @@ def build_stroke_encounter_profile(
 
     if post_acute_care:
         extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/required-post-acute-care-ext",
+            url="http://qualityregistry.org/StructureDefinition/required-post-acute-care-ext",
             valueBoolean=True
         ))
     else:
         extension_list.append(Extension(
-            url="http://tecnomod-um.org/StructureDefinition/required-post-acute-care-ext",
+            url="http://qualityregistry.org/StructureDefinition/required-post-acute-care-ext",
             valueBoolean=False
         ))
 
     if ems_prenotification:
             extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/ems-prenotification-ext",
+                url="http://qualityregistry.org/StructureDefinition/ems-prenotification-ext",
                 valueBoolean=True
             ))
     else:
             extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/ems-prenotification-ext",
+                url="http://qualityregistry.org/StructureDefinition/ems-prenotification-ext",
                 valueBoolean=False
             ))
 

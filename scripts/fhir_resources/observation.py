@@ -37,7 +37,7 @@ def build_observation_vital_signs(systolic_pressure: int | None, diastolic_press
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/vital-sign-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/vital-sign-observation-profile"]),
         code=CodeableConcept(coding=[VitalSigns.TAKE_VS.to_coding()]),
     )
 
@@ -82,7 +82,7 @@ def build_observation_vital_signs(systolic_pressure: int | None, diastolic_press
         assessment_value = timing.to_coding()
         assessment_code = CodeableConcept(coding=[assessment_value])
         extension = Extension(
-                url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+                url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext",
                 valueCodeableConcept=assessment_code
             )
         extension_list = [extension]
@@ -117,7 +117,7 @@ def build_observation_mrs(patient_ref: str, encounter_ref: str, mrs_score: MRsSc
 
     assessment_code = CodeableConcept(coding=[assessment_value])
     extensions = Extension(
-        url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext",
         valueCodeableConcept=assessment_code
     )
     
@@ -136,7 +136,7 @@ def build_observation_mrs(patient_ref: str, encounter_ref: str, mrs_score: MRsSc
     
     return Observation(
         status="final",
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/functional-score-observation-profile"]),
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
         code=code_mrs,
@@ -169,7 +169,7 @@ def build_observation_nihss(patient_ref: str, encounter_ref: str, value_nihss: i
         raise TransformError("NIHSS observation requires admission or discharge context.")
     
     extensions = Extension(
-        url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[assesment_value])
     )
  
@@ -187,7 +187,7 @@ def build_observation_nihss(patient_ref: str, encounter_ref: str, value_nihss: i
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/functional-score-observation-profile"]),
         code=code_nihss,
         valueInteger=value_nihss,
         category=[code_category],
@@ -222,7 +222,7 @@ def build_observation_mtici_score(mtici_score: MTiciScore, patient_ref: str, enc
     return Observation(
         status="final",
         subject=Reference(reference=patient_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/specific-finding-observation-profile"]),
         code=code_mtici,
         valueCodeableConcept=code_value_mtici,
         category=[code_category],
@@ -247,7 +247,7 @@ def build_observation_blood_volume(patient_ref: str, encounter_ref: str, bleedin
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/specific-finding-observation-profile"]),
         code=CodeableConcept(coding=[SpecificFinding.BLOOD_VOLUME.to_coding()])
     )
     coding_category = Coding(
@@ -260,7 +260,7 @@ def build_observation_blood_volume(patient_ref: str, encounter_ref: str, bleedin
     extension_list = []
     if post_acute_care is not None:
         acute_extension = Extension(
-                url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+                url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext",
                 valueBoolean=post_acute_care
             )
         
@@ -293,7 +293,7 @@ def build_observation_carotid_stenosis(patient_ref: str, encounter_ref: str, car
     obs =  Observation(
         status="final",
         subject=Reference(reference=patient_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/specific-finding-observation-profile"]),
         encounter=Reference(reference=encounter_ref),
         code = CodeableConcept(coding=[SpecificFinding.CAROTID_STENOSIS.to_coding()])
     )
@@ -346,7 +346,7 @@ def build_observation_occluded_artery(patient_ref: str, encounter_ref: str, body
     return Observation(
         status="final",
         subject=Reference(reference=patient_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/specific-finding-observation-profile"]),
         code=code_occluded_artery,
         category=[code_category],
         valueBoolean=True,
@@ -376,7 +376,7 @@ def build_observation_Af_or_F(patient_ref: str, encounter_ref: str, atrial_fibri
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref)
     )
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/specific-finding-observation-profile"])
 
     category = CodeableConcept(coding=[Coding(
         code="laboratory",
@@ -428,7 +428,7 @@ def build_observation_Af_or_F(patient_ref: str, encounter_ref: str, atrial_fibri
 #     return Observation(
 #         status="final",
 #         subject=Reference(reference=patient_ref),
-#         meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/base-stroke-observation"]),
+#         meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/base-stroke-observation"]),
 #         code=code_smoker,
 #         encounter=Reference(reference=encounter_ref),
 #     )
@@ -463,7 +463,7 @@ def build_observation_Af_or_F(patient_ref: str, encounter_ref: str, atrial_fibri
 #     return Observation(
 #         status="final",
 #         subject=Reference(reference=patient_ref),
-#         meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/stroke-circumstance-observation-profile"]),
+#         meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-circumstance-observation-profile"]),
 #         code=code_circumstance,
 #         encounter=Reference(reference=encounter_ref),
 #     )
@@ -482,7 +482,7 @@ def build_no_anticoagulant_discharge_medication(patient_ref:str, encounter_ref:s
     observation = Observation(
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/no-anticoagulant-discharge-reason-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/no-anticoagulant-discharge-reason-observation-profile"]),
         code=CodeableConcept(coding=[ObservationMethods.NO_ANTICOAGULATION.to_coding()]),
         valueCodeableConcept=CodeableConcept(coding=[no_anticoagulant_discharge_reason.to_coding()]),
         status="final"
@@ -531,7 +531,7 @@ def build_timing_d2n_observation(door_to_needle_time: int, patient_ref: str, enc
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_needle_time),
@@ -561,7 +561,7 @@ def build_timing_d2n_le45_observation(door_to_needle_le45: bool, patient_ref: st
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueBoolean=door_to_needle_le45,
         partOf=[Reference(reference=procedure_ref)]
@@ -586,7 +586,7 @@ def build_timing_d2n_le60_observation(door_to_needle_le60: bool, patient_ref: st
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueBoolean=door_to_needle_le60,
         partOf=[Reference(reference=procedure_ref)]
@@ -611,7 +611,7 @@ def build_timing_door_to_ich_evacuation_observation(door_to_ich_evacuation_time:
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_ich_evacuation_time),
@@ -642,7 +642,7 @@ def build_timing_door_to_imaging_observation(door_to_imaging_time: int, patient_
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_imaging_time),
@@ -672,7 +672,7 @@ def build_timing_door_to_iv_antihypertensive_observation(door_to_iv_antihyperten
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_iv_antihypertensive_time),
@@ -702,7 +702,7 @@ def build_door_to_reperfusion_observation(door_to_reperfusion_time: int, patient
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_reperfusion_time),
@@ -731,7 +731,7 @@ def build_door_to_sys_bp_lt140_observation(door_to_sys_bp_lt140_time: int, patie
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_sys_bp_lt140_time),
@@ -759,7 +759,7 @@ def build_onset_to_door_observation(onset_to_door_time: int, patient_ref: str, e
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(onset_to_door_time),
@@ -783,7 +783,7 @@ def build_highest_systolic_pressure_after24h_observation(highest_systolic_pressu
     timing_obj = VitalSigns.SYSTOLIC.to_coding()
     code_timing = CodeableConcept(coding=[timing_obj])
     extension = Extension(
-        url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.POST_ACUTE.to_coding()])
     )
     extension_list = [extension]
@@ -792,7 +792,7 @@ def build_highest_systolic_pressure_after24h_observation(highest_systolic_pressu
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(highest_systolic_pressure_after24h),
@@ -821,7 +821,7 @@ def build_systolic_pressure_lt140_observation(patient_ref: str, encounter_ref: s
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueBoolean=systolic_pressure_lt140,
         effectiveDateTime=parse_datetime(str(systolic_pressure_lt140_timestamp)) if systolic_pressure_lt140_timestamp is not None else None
@@ -846,7 +846,7 @@ def build_timing_d2g_observation(door_to_groin_time: int, patient_ref: str, enco
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_groin_time),
@@ -876,7 +876,7 @@ def build_timing_d2g_le90_observation(door_to_groin_le90: bool, patient_ref: str
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueBoolean=door_to_groin_le90,
         partOf=[Reference(reference=procedure_ref)]
@@ -901,7 +901,7 @@ def build_door_to_anticoagulant_reversal_observation(door_to_anticoagulant_rever
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity=Quantity(
             value=Decimal(door_to_anticoagulant_reversal_time),
@@ -931,7 +931,7 @@ def build_timing_d2g_le120_observation(door_to_groin_le120: bool, patient_ref: s
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueBoolean=door_to_groin_le120,
         partOf=[Reference(reference=procedure_ref)]
@@ -955,7 +955,7 @@ def build_observation_three_month_contact_mode(three_month_contact_mode: ThreeMo
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/three-month-contact-mode-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/three-month-contact-mode-observation-profile"]),
         code=code_contact_mode,
     )
 
@@ -978,7 +978,7 @@ def build_timing_discharge_to_three_months_contact_observation(discharge_to_thre
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(discharge_to_three_months_contact),
@@ -1006,7 +1006,7 @@ def build_door_to_discharge_observation(door_to_discharge_time: int, patient_ref
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_discharge_time),
@@ -1035,7 +1035,7 @@ def build_door_to_door_observation(door_to_door_time: int, patient_ref: str, enc
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(door_to_door_time),
@@ -1065,7 +1065,7 @@ def build_groin_to_reperfusion_observation(groin_to_reperfusion_time: int, patie
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity= Quantity(
             value=Decimal(groin_to_reperfusion_time),
@@ -1093,7 +1093,7 @@ def build_observation_glucose(glucose: float | None, patient_ref: str, encounter
         code=CodeableConcept(),
         status="final"
     )
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/analytics-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/analytics-observation-profile"])
     glucose_coding = AnaliticsCodes.GLUCOSE.to_coding()
     code_glucose = CodeableConcept(coding=[glucose_coding])
     observation.code = code_glucose
@@ -1113,7 +1113,7 @@ def build_observation_glucose(glucose: float | None, patient_ref: str, encounter
 
     extension_list = []
     ext = Extension(
-        url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[timing.to_coding()]) if timing is not None else None
     )
     extension_list.append(ext)
@@ -1144,7 +1144,7 @@ def build_iv_antihypertensive_to_sys_bp_lt140_observation(iv_antihypertensive_to
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/timing-metric-observation-profile"]),
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/timing-metric-observation-profile"]),
         code=code_timing,
         valueQuantity=Quantity(
             value=Decimal(str(iv_antihypertensive_to_sys_bp_lt140_time)),
@@ -1169,7 +1169,7 @@ def build_observation_cholesterol(cholesterol: float, patient_ref: str, encounte
         code=CodeableConcept(),
         status="final"
     )
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/analytics-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/analytics-observation-profile"])
     cholesterol_coding = AnaliticsCodes.CHOLESTEROL.to_coding()
     code_cholesterol = CodeableConcept(coding=[cholesterol_coding])
     observation.code = code_cholesterol
@@ -1189,7 +1189,7 @@ def build_observation_cholesterol(cholesterol: float, patient_ref: str, encounte
 
     extension_list = []
     ext = Extension(
-        url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+        url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext",
         valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.ADMISSION.to_coding()])
     )
     extension_list.append(ext)
@@ -1223,7 +1223,7 @@ def build_observation_glasgow_coma_scale_score(patient_ref: str, encounter_ref: 
         display="Exam"
     )
     category_code = CodeableConcept(coding=[category_coding])
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/glasgow-coma-score-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/glasgow-coma-score-observation-profile"])
     observation.code = code_gcs
     observation.category = [category_code]
     observation.valueInteger = gcs_score
@@ -1255,7 +1255,7 @@ def build_observation_glasgow_coma_scale_level(patient_ref: str, encounter_ref: 
         display="Exam"
     )
     category_code = CodeableConcept(coding=[category_coding])
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/glasgow-coma-scale-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/glasgow-coma-scale-observation-profile"])
     observation.code = CodeableConcept(coding=[GlasgowComaScale.GCS.to_coding()])
     observation.category = [category_code]
     observation.valueCodeableConcept = CodeableConcept(coding=[gcs_level.to_coding()])
@@ -1296,7 +1296,7 @@ def build_observation_inr(patient_ref: str, encounter_ref: str, inr_value: int |
 
     extension_list = []
     timing_ext = Extension(
-            url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext",
+            url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext",
             valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.ADMISSION.to_coding()])
         )
     extension_list.append(timing_ext)
@@ -1444,7 +1444,7 @@ def build_observation_aspect_score(patient_ref: str, encounter_ref: str, aspect_
     category_code = CodeableConcept(coding=[category_coding])
     observation.category = [category_code]
     observation.valueInteger = aspect_score
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/functional-score-observation-profile"])
     observation.subject = Reference(reference=patient_ref)
     observation.encounter = Reference(reference=encounter_ref)
 
@@ -1477,7 +1477,7 @@ def build_observation_ich_score (ich_score: int, patient_ref: str, encounter_ref
     category_code = CodeableConcept(coding=[category_coding])
     observation.category = [category_code]
     observation.valueInteger = ich_score
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/functional-score-observation-profile"])
     observation.subject = Reference(reference=patient_ref)
     observation.encounter = Reference(reference=encounter_ref)
 
@@ -1509,7 +1509,7 @@ def build_observation_hunt_hess_score(patient_ref: str, encounter_ref: str,hunt_
     category_code = CodeableConcept(coding=[category_coding])
     observation.category = [category_code]
     observation.valueInteger = hunt_hess_score
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/functional-score-observation-profile"])
     observation.subject = Reference(reference=patient_ref)
     observation.encounter = Reference(reference=encounter_ref)
 
@@ -1551,7 +1551,7 @@ def build_tia_clinical_symptomps_observation(patient_ref: str, encounter_ref: st
     elif tia_duration == TiaSymptomDuration.GT_60_MINUTES:
         observation.valueQuantity = Quantity(value=Decimal(60),comparator=">=", unit=UnitofMeasurement.MINUTE.display, system=UnitofMeasurement.MINUTE.system, code=UnitofMeasurement.MINUTE.code)
 
-    #observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/tia-clinical-symptoms-observation-profile"])
+    #observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/tia-clinical-symptoms-observation-profile"])
     observation.subject = Reference(reference=patient_ref)
     observation.encounter = Reference(reference=encounter_ref)
 
@@ -1587,12 +1587,12 @@ def build_observation_patient_ventilated(patient_ref: str, encounter_ref: str, v
 
     observation.valueBoolean = ventilated
 
-    #observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/patient-ventilated-observation-profile"])
+    #observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/patient-ventilated-observation-profile"])
     observation.subject = Reference(reference=patient_ref)
     observation.encounter = Reference(reference=encounter_ref)
     extension_list = []
     extension_list.append(Extension(
-                url="http://tecnomod-um.org/StructureDefinition/required-post-acute-care-ext",
+                url="http://qualityregistry.org/StructureDefinition/required-post-acute-care-ext",
                 valueBoolean=True
             ))
 
@@ -1620,7 +1620,7 @@ def build_observation_finding_post_ivt_mt(patient_ref: str, encounter_ref: str,p
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/specific-finding-observation-profile"])
     )
 
     observation_remote_bleeding = Observation(
@@ -1628,7 +1628,7 @@ def build_observation_finding_post_ivt_mt(patient_ref: str, encounter_ref: str,p
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/specific-finding-observation-profile"])
     )
 
     observation_hemorrhagic_transformation = Observation(
@@ -1636,7 +1636,7 @@ def build_observation_finding_post_ivt_mt(patient_ref: str, encounter_ref: str,p
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        meta=Meta(profile=["http://tecnomod-um.org/StructureDefinition/specific-finding-observation-profile"])
+        meta=Meta(profile=["http://qualityregistry.org/StructureDefinition/specific-finding-observation-profile"])
     )
 
 
@@ -1761,9 +1761,9 @@ def build_observation_fever(patient_ref: str, encounter_ref: str, observation_me
         valueBoolean=fever
     )
 
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/fever-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/fever-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
-    observation.extension = [Extension(url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext", valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.HOURS_72.to_coding()]))]
+    observation.extension = [Extension(url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext", valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.HOURS_72.to_coding()]))]
     
     
     return observation
@@ -1790,7 +1790,7 @@ def build_observation_hyperglycemia_measurement_checks(patient_ref: str, encount
             status="final",
             subject=Reference(reference=patient_ref),
             encounter=Reference(reference=encounter_ref),
-            meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/hyperglycemia-observation-profile"]),
+            meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/hyperglycemia-observation-profile"]),
             category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
 
         )
@@ -1825,7 +1825,7 @@ def build_observation_hyperglycemia_day_2(patient_ref: str, encounter_ref: str, 
     )
     observation.valueInteger = day_2_hyperglycemia
 
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/hyperglycemia-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/hyperglycemia-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation
 
@@ -1848,7 +1848,7 @@ def build_observation_hyperglycemia_day_3(patient_ref: str, encounter_ref: str, 
     )
     observation.valueInteger = day_3_hyperglycemia
 
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/hyperglycemia-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/hyperglycemia-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation
 
@@ -1872,7 +1872,7 @@ def build_observation_ge10(patient_ref: str, encounter_ref: str, ge10: bool) -> 
     )
     observation.valueBoolean = ge10
 
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/glucose-ge10-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/glucose-ge10-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation
 
@@ -1896,9 +1896,9 @@ def build_observation_highest_hyperglycemia_value(patient_ref: str, encounter_re
     )
     observation.valueQuantity = Quantity(value=Decimal(highest_hyperglycemia_value) , unit=UnitofMeasurement.MMOL_L.display, system=UnitofMeasurement.MMOL_L.system, code=UnitofMeasurement.MMOL_L.code) 
 
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/highest-hyperglycemia-value-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/highest-hyperglycemia-value-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
-    observation.extension = [Extension(url="http://tecnomod-um.org/StructureDefinition/observation-timing-context-ext", valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.FIRST_48_HOURS.to_coding()]))]
+    observation.extension = [Extension(url="http://qualityregistry.org/StructureDefinition/observation-timing-context-ext", valueCodeableConcept=CodeableConcept(coding=[AssessmentContext.FIRST_48_HOURS.to_coding()]))]
     return observation
 
 
@@ -1921,7 +1921,7 @@ def build_abcd2_score_observation(patient_ref: str, encounter_ref: str, abcd2_sc
         encounter=Reference(reference=encounter_ref)
     )
     observation.valueInteger = abcd2_score
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/functional-score-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation
 
@@ -1943,7 +1943,7 @@ def build_CHA2S2_VASc_observation(patient_ref: str, encounter_ref: str, cha2s2_v
         encounter=Reference(reference=encounter_ref)
     )
     observation.valueInteger = cha2s2_vasc_score
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/functional-score-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation
 
@@ -1965,7 +1965,7 @@ def build_thrive_score_observation(patient_ref: str, encounter_ref: str, thrive_
         encounter=Reference(reference=encounter_ref)
     )
     observation.valueInteger = thrive_score
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/functional-score-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/functional-score-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation
 
@@ -1988,6 +1988,6 @@ def build_appointment_observation(patient_ref: str, encounter_ref: str, appointm
         encounter=Reference(reference=encounter_ref),
         valueCodeableConcept=CodeableConcept(coding=[appointment_management.to_coding()])
     )
-    observation.meta = Meta(profile=["http://tecnomod-um.org/StructureDefinition/appointment-management-observation-profile"])
+    observation.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/appointment-management-observation-profile"])
     observation.category = [CodeableConcept(coding=[Coding(system="http://terminology.hl7.org/CodeSystem/observation-category", code="exam", display="Exam")])]
     return observation
