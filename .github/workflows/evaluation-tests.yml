@@ -1,0 +1,37 @@
+name: Evaluation tests
+
+on:
+  push:
+    branches:
+      - feature/semantic-preservation-evaluation
+  pull_request:
+    paths:
+      - 'scripts/evaluation/**'
+      - 'tests/evaluation/**'
+      - '.github/workflows/evaluation-tests.yml'
+
+jobs:
+  evaluation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile evaluation modules
+        run: |
+          python -m py_compile scripts/evaluation/resource_counts.py scripts/evaluation/semantic_preservation.py scripts/evaluation/evaluate.py
+
+      - name: Run evaluation unit tests
+        run: |
+          python -m unittest discover -s tests/evaluation -p 'test_*.py' -v
