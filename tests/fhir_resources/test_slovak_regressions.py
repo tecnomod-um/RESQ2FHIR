@@ -28,8 +28,8 @@ class SlovakRegressionTests(unittest.TestCase):
         self.assertTrue(all(normalized.loc[0, field] is None for field in etiology_fields))
 
         self.assertEqual("1", normalized.loc[1, "stroke_type"])
-        self.assertIs(normalized.loc[1, "stroke_etiology_cardioembolism"], True)
-        self.assertIs(normalized.loc[1, "stroke_etiology_la_atherosclerosis"], False)
+        self.assertEqual(True, normalized.loc[1, "stroke_etiology_cardioembolism"])
+        self.assertEqual(False, normalized.loc[1, "stroke_etiology_la_atherosclerosis"])
 
     def test_missing_ivt_department_does_not_create_location_reference(self):
         context = Mock()
