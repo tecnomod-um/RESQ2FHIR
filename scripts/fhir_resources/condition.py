@@ -93,18 +93,18 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
     if stroke_type == StrokeType.ISCHEMIC:
         if stroke_etiology_known is True and stroke_etiology is not None:
             extension_list.append(Extension(
-            url="http://qualityregistry.org/StructureDefinition/ischemic-stroke-etiology-ext",
-            valueCodeableConcept=CodeableConcept(coding=[stroke_etiology.to_coding()])
-        ))
+                url="http://qualityregistry.org/StructureDefinition/ischemic-stroke-etiology-ext",
+                valueCodeableConcept=CodeableConcept(coding=[stroke_etiology.to_coding()])
+            ))
         else:
             extension_list.append(Extension(
-            url="http://qualityregistry.org/StructureDefinition/ischemic-stroke-etiology-ext",
-            valueCodeableConcept=CodeableConcept(coding=[StrokeEtiology.UNDETERMINED.to_coding()])
-        ))
+                url="http://qualityregistry.org/StructureDefinition/ischemic-stroke-etiology-ext",
+                valueCodeableConcept=CodeableConcept(coding=[StrokeEtiology.UNDETERMINED.to_coding()])
+            ))
 
     if stroke_type in [
-    StrokeType.INTRACEREBRAL_HEMORRHAGE,
-    StrokeType.SUBARACHNOID_HEMORRHAGE
+        StrokeType.INTRACEREBRAL_HEMORRHAGE,
+        StrokeType.SUBARACHNOID_HEMORRHAGE
     ]:
         if bleeding_reason_found is True and bleeding_reasons:
             for bleeding_reason in bleeding_reasons:
@@ -114,47 +114,24 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
                 ))
         else:
             extension_list.append(Extension(
-            url="http://qualityregistry.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
-            valueCodeableConcept=CodeableConcept(coding=[BleedingReason.UNDETERMINED.to_coding()])
+                url="http://qualityregistry.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
+                valueCodeableConcept=CodeableConcept(coding=[BleedingReason.UNDETERMINED.to_coding()])
             ))
+
     # Profile + optional extensions
     condition.meta = Meta(profile=["http://qualityregistry.org/StructureDefinition/stroke-diagnosis-condition-profile"])
 
-
-    
-    
-
-    # if not safe_isna(raw.get("stroke_etiology_known")) and raw.get("stroke_etiology_known"):
-    #     etiology = get_stroke_etiology(raw)
-    if stroke_etiology_known is True:
-        if stroke_etiology is not None:
-            extension_list.append(Extension(
-                url="http://qualityregistry.org/StructureDefinition/ischemic-stroke-etiology-ext",
-                valueCodeableConcept=CodeableConcept(coding=[stroke_etiology.to_coding()])
-            ))
-
-    
-    if bleeding_reason_found is True:
-        if bleeding_reasons:
-            for bleeding_reason in bleeding_reasons:
-                extension_list.append(Extension(
-                    url="http://qualityregistry.org/StructureDefinition/hemorrhagic-stroke-bleeding-reason-ext",
-                    valueCodeableConcept=CodeableConcept(coding=[bleeding_reason.to_coding()])
-                ))
-
-
-    
     if wakeup_stroke is True:
-            if sleep_timestamp is not None: 
-                condition.onsetDateTime = parse_datetime(sleep_timestamp)
+        if sleep_timestamp is not None: 
+            condition.onsetDateTime = parse_datetime(sleep_timestamp)
     else:
-            if onset_timestamp is not None:
-                condition.onsetDateTime = parse_datetime(onset_timestamp)
+        if onset_timestamp is not None:
+            condition.onsetDateTime = parse_datetime(onset_timestamp)
 
     extension_list.append(Extension(
-            url="http://qualityregistry.org/StructureDefinition/wakeup-stroke-ext",
-            valueBoolean=wakeup_stroke
-        ))
+        url="http://qualityregistry.org/StructureDefinition/wakeup-stroke-ext",
+        valueBoolean=wakeup_stroke
+    ))
 
     if extension_list:
         condition.extension = extension_list
