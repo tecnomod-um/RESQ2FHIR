@@ -1,4 +1,4 @@
-name: Stroke diagnosis tests
+name: Slovak validation regression tests
 
 on:
   push:
@@ -7,11 +7,18 @@ on:
   pull_request:
     paths:
       - 'scripts/fhir_resources/condition.py'
+      - 'scripts/normalization/sk_registry.py'
+      - 'scripts/data_modeling.py'
       - 'tests/fhir_resources/test_stroke_diagnosis_condition.py'
+      - 'tests/fhir_resources/test_slovak_regressions.py'
+      - 'fhir-validator/pom.xml'
+      - 'fhir-validator/src/main/java/com/example/validator/terminology/SnowstormClient.java'
+      - 'fhir-validator/src/main/java/com/example/validator/validation/SnomedSnowstormValidator.java'
+      - 'fhir-validator/src/test/java/com/example/validator/terminology/SnowstormClientTest.java'
       - '.github/workflows/stroke-diagnosis-tests.yml'
 
 jobs:
-  stroke-diagnosis-tests:
+  regression-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -23,15 +30,25 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Compile condition builder
+      - name: Compile Python modules
         run: |
-          python -m py_compile scripts/fhir_resources/condition.py
+          python -m py_compile scripts/fhir_resources/condition.py scripts/normalization/sk_registry.py scripts/data_modeling.py
 
-      - name: Run stroke diagnosis regression tests
+      - name: Run Python regression tests
         run: |
-          python -m unittest tests.fhir_resources.test_stroke_diagnosis_condition -v
+          python -m unittest tests.fhir_resources.test_stroke_diagnosis_condition tests.fhir_resources.test_slovak_regressions -v
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run Snowstorm validator tests
+        run: mvn -q -f fhir-validator/pom.xml test
