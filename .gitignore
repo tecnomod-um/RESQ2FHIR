@@ -1,11 +1,11 @@
 .venv/
 workdir/
-scripts/__pycache__/
-scripts/fhir_resources/__pycache__/
 .vscode/
 data/
-scripts/normalization/__pycache__/
 fhir-validator/target/
-__pycache__/
-*.pyc
 fhir-validator/terminology/*.zip
+
+# Python generated artifacts
+__pycache__/
+**/__pycache__/
+*.pyc
