@@ -327,6 +327,21 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     out["stroke_etiology_lacunar"] = etiology_source.map(lambda value: True if value == "3" else (False if value else None))
     out["stroke_etiology_cryptogenic_stroke"] = etiology_source.map(lambda value: True if value == "4" else (False if value else None))
     out["stroke_etiology_other"] = etiology_source.map(lambda value: True if value == "5" else (False if value else None))
+
+    # ETIO_ISCH_CMP is an ischemic-stroke classification. Some Slovak rows carry
+    # a residual value even when the final diagnosis is TIA/non-ischemic. Keep
+    # the source unchanged, but do not export that value into the canonical
+    # contract where it would be interpreted as ischemic-stroke etiology.
+    ischemic_etiology_columns = [
+        "stroke_etiology_cardioembolism",
+        "stroke_etiology_la_atherosclerosis",
+        "stroke_etiology_lacunar",
+        "stroke_etiology_cryptogenic_stroke",
+        "stroke_etiology_other",
+    ]
+    non_ischemic_mask = out["stroke_type"].ne("1")
+    out.loc[non_ischemic_mask, ischemic_etiology_columns] = None
+
     if "risk_atrial_fibrillation" in out:
         out.loc[out["risk_atrial_fibrillation"] == True, "atrial_fibrillation_or_flutter"] = "1"
 

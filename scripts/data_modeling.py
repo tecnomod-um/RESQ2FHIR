@@ -39,6 +39,18 @@ DOCUMENT_PRIOR_MEDICATION_STATUSES = frozenset({
     "Taking",
 })
 
+def _add_thrombolysis_location(context: StrokeCaseContext, location_value: str | None) -> str | None:
+    """Create and register the IVT Location only when the source provides it."""
+
+    if location_value is None:
+        return None
+
+    location_ref = get_uuid()
+    location = build_location(IvtApplicationDepartment.by_id(location_value))
+    context.add_resource(location, full_url=location_ref)
+    return location_ref
+
+
 def document_sections_for_procedure(
     procedure,
     *,
@@ -415,13 +427,9 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                 logger.info("Thrombolysis done: %s", thrombolysis_done)
                 bolus_timestamp = safe_get(raw, "bolus_timestamp", required=False) # Check if bolus timestamp is present in raw data, not required
                 thrombolysis_location_value = safe_get(raw, "ivt_application_department", required=False) # Check if thrombolysis location is present in raw data, not required
-                thrombolysis_location_ref = get_uuid()
-
-                if thrombolysis_location_value is not None:
+                thrombolysis_location_ref = _add_thrombolysis_location(context, thrombolysis_location_value)
+                if thrombolysis_location_ref is not None:
                     logger.info("Thrombolysis location: %s", thrombolysis_location_value)
-                    thrombolysis_location = build_location(IvtApplicationDepartment.by_id(thrombolysis_location_value)) # Build Location resource for thrombolysis location
-                    #entries.append(BundleEntry(fullUrl=thrombolysis_location_ref, resource=thrombolysis_location, request=BundleEntryRequest(method="POST", url="Location")))
-                    context.add_resource(thrombolysis_location,full_url=thrombolysis_location_ref,)
                 medication_thrombolysis = safe_get(raw, "ivt_drug", required=False) # Check if thrombolysis medication is present in raw data, not required
                 ivt_drug_dose = safe_get(raw, "ivt_drug_dose", required=False) # Check if thrombolysis medication dose is present in raw data, not required
                 
@@ -718,10 +726,7 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                 bolus_timestamp = safe_get(raw, "bolus_timestamp", required=False) # Check if bolus timestamp is present in raw data, not required
                 thrombolysis_location_value = safe_get(raw, "ivt_application_department", required=False) # Check if thrombolysis location is present in raw data, not required
 
-                if thrombolysis_location_value is not None:
-                    thrombolysis_location_ref = get_uuid()
-                    thrombolysis_location = build_location(IvtApplicationDepartment.by_id(thrombolysis_location_value)) # Build Location resource for thrombolysis location
-                    entries.append(BundleEntry(fullUrl=thrombolysis_location_ref, resource=thrombolysis_location, request=BundleEntryRequest(method="POST", url="Location")))
+                thrombolysis_location_ref = _add_thrombolysis_location(context, thrombolysis_location_value)
 
                 medication_thrombolysis = safe_get(raw, "ivt_drug", required=False) # Check if thrombolysis medication is present in raw data, not required
                 ivt_drug_dose = safe_get(raw, "ivt_drug_dose", required=False) # Check if thrombolysis medication dose is present in raw data, not required
