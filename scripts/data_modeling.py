@@ -104,6 +104,7 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
     procedure_imaging_ref = ""
     ich_treatment_hematoma_ref = None
     medicationAdministration_iv_antihypertensive_ref = ""
+    procedure_thrombolysis_ref = None
     transferred_from_hosp_loc_ref = get_uuid()
 
     stroke_type = safe_get(raw, "stroke_type", required=False) # Check if stroke_type is present in raw data, not required
@@ -358,7 +359,6 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
 
     ########################## 2.2 Stroke Type ###########################
     condition_stroke_ref = None
-    thrombolysis_procedure_ref = None
     thrombectomy_procedure_ref = None
     stroke_type = safe_get(raw, "stroke_type", required=False) # Check if stroke_type is present in raw data, not required
     logger.info("Stroke type obtained: %s", stroke_type)
@@ -379,6 +379,11 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                 #entries.append(BundleEntry(fullUrl=obs_clinical_symptoms_ref_id, resource=obs_clinical_symptoms_ref, request=BundleEntryRequest(method="POST", url="Observation"))  )
                 
         bleeding_reason_list = get_bleeding_reason(raw) # Obtain bleeding reasons list from raw data using helper function, passing raw data
+        source_bleeding_reason_found = safe_get_bool(raw, "bleeding_source_found", required=False) # Obtain bleeding source found boolean from raw data, field not required
+        bleeding_reason_found = (
+            source_bleeding_reason_found is True
+            or bool(bleeding_reason_list)
+        )        
         condition_stroke_ref = get_uuid()
         condition_stroke = build_stroke_diagnosis_condition_profile(patient_ref = patient_ref, # Build Condition resource for stroke diagnosis using patient_ref and other relevant data from raw
                                                                     encounter_ref = encounter_ref,
@@ -386,7 +391,7 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                     stroke_type_mimics=MimicsDiagnosis.by_id(safe_get(raw, "stroke_mimics_diagnosis", required=False)), # Obtain stroke type mimics from raw data and convert to ConceptEnum, field not required
                                                                     stroke_etiology=get_stroke_etiology(raw),
                                                                     bleeding_reasons=bleeding_reason_list, # Use the obtained bleeding reasons list
-                                                                    bleeding_reason_found=(safe_get_bool(raw, "bleeding_source_found", required=False)), # Obtain bleeding source found boolean from raw data, field not required
+                                                                    bleeding_reason_found=bleeding_reason_found, # Use the calculated bleeding reason found boolean
                                                                     stroke_etiology_known=safe_get_bool(raw, "stroke_etiology_known", required=False, default=False) or get_stroke_etiology(raw) is not None,
                                                                     ich_infratentorial=safe_get_bool(raw, "infratentorial_hemorrhage", required=False) if safe_get(raw, "infratentorial_hemorrhage", required=False) is not None else safe_get_bool(raw, "ich_infratentorial", required=False, default=False),
                                                                     ich_supratentorial=safe_get_bool(raw, "ich_supratentorial", required=False, default=False), # Obtain intracerebral hemorrhage supratentorial boolean from raw data, field not required, default to False
@@ -844,13 +849,6 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                 craniectomy_performed=craniectomy_done) 
             # Build Procedure resource for craniectomy using patient_ref, encounter_ref and stroke diagnosis reference, field not required                    )
             entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_craniectomy, request=BundleEntryRequest(method="POST", url="Procedure")))
-        ############################ 3.3 Post-acute, atrial fibrillation/flutter (Observation) ######################################
-        atrial_fibrillation_or_flutter = safe_get(raw, "atrial_fibrillation_or_flutter", required=False) # Check if atrial fibrillation or flutter boolean is present in raw data, not required 
-        if atrial_fibrillation_or_flutter is not None:
-            observation_af_or_f =build_observation_Af_or_F(patient_ref=patient_ref,
-                                                        encounter_ref=encounter_ref,
-                                                        atrial_fibrillation_or_flutter=AtrialFibrillationOrFlutter.by_id(str(atrial_fibrillation_or_flutter))) # Build Observation resource for atrial fibrillation or flutter using patient_ref, encounter_ref and atrial fibrillation or flutter boolean from raw data, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_af_or_f, request=BundleEntryRequest(method="POST", url="Observation")))
         ############################ 3.4 Carotid artery imaging (Procedure) ######################################
         carotid_arteries_imaging = safe_get_bool(raw, "carotid_arteries_imaging", required=False, default=False) # Check if carotid artery imaging boolean is present in raw data, not required
         if carotid_arteries_imaging:
@@ -1009,28 +1007,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                 final_reference_time=str(final_timestamp)) # Pass insulin administration timestamp to build_medicationAdministration
             entries.append(BundleEntry(fullUrl=get_uuid(), resource=insulin_on_hyperglycemia_medicationAdministration, request=BundleEntryRequest(method="POST", url="MedicationAdministration")))
 
-        ############################# 3.9 Swallowing screening test (Procedure) ######################################
-        swallowing_screening_done_value = safe_get(raw, "swallowing_screening_done", required=False)
-        swallowing_screening_done = SwallowingScreeningDone.by_id(swallowing_screening_done_value)
-        if swallowing_screening_done is not None:
-
-            practitioner_role_ref = None
-            swallowing_screening_performer = ScreeningPerformer.by_id(safe_get(raw, "swallowing_screening_performer", required=False)) # Check if swallowing screening test performer is present in raw data, not required
-            if swallowing_screening_performer is not None:  
-                practitioner_role_ref = get_uuid()
-                performer = build_practitioner(swallowing_screening_performer) # Build PractitionerRole resource for swallowing screening test performer
-                entries.append(BundleEntry(fullUrl=practitioner_role_ref, resource=performer, request=BundleEntryRequest(method="POST", url="Practitioner")))
-
-            swallowing_screening_timing = SwallowingScreeningTiming.by_id(safe_get(raw, "swallowing_screening_timing", required=swallowing_screening_done is SwallowingScreeningDone.YES)) # Check if swallowing screening test timing is present in raw data, not required
-            swallowing_screening_type = SwallowingScreeningType.by_id(safe_get(raw, "swallowing_screening_type", required=False)) # Check if swallowing screening test type is present in raw data, not required
-
-            procedure_swallowing_screening = build_swallowing_screening_procedure(patient_ref=patient_ref,
-                                                                encounter_ref=encounter_ref,
-                                                                practitioner_role_ref=practitioner_role_ref,
-                                                                swallowing_screening_done=swallowing_screening_done,
-                                                                swallowing_screening_type=swallowing_screening_type,
-                                                                swallowing_screening_timing=swallowing_screening_timing) # Build Procedure resource for swallowing screening test using patient_ref, encounter_ref and stroke diagnosis reference, field not required
-            entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_swallowing_screening, request=BundleEntryRequest(method="POST", url="Procedure")))
+        
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=procedure_swallowing_screening, request=BundleEntryRequest(method="POST", url="Procedure")))
 
         ######################### 3.10 Rehabilitation/Occupational therapy/Speech therapy (Procedure) ######################################
         physiotherapy_done = safe_get(raw, "physiotherapy", required=False) # Check if physiotherapy done boolean is present in raw data, not required     
@@ -1057,7 +1035,34 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
             context.add_resource(procedure_speech_therapy, sections=(DischargeSection.PLAN_OF_CARE, ), )
 
 ################################# End Post-acute care data #####################################
+    ############################ 3.3 Post-acute, atrial fibrillation/flutter (Observation) ######################################
+    atrial_fibrillation_or_flutter = safe_get(raw, "atrial_fibrillation_or_flutter", required=False) # Check if atrial fibrillation or flutter boolean is present in raw data, not required 
+    if atrial_fibrillation_or_flutter is not None:
+        observation_af_or_f =build_observation_Af_or_F(patient_ref=patient_ref,
+                                                    encounter_ref=encounter_ref,
+                                                    atrial_fibrillation_or_flutter=AtrialFibrillationOrFlutter.by_id(str(atrial_fibrillation_or_flutter))) # Build Observation resource for atrial fibrillation or flutter using patient_ref, encounter_ref and atrial fibrillation or flutter boolean from raw data, field not required
+        entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_af_or_f, request=BundleEntryRequest(method="POST", url="Observation")))
 
+############################# 3.9 Swallowing screening test (Procedure) ######################################
+    swallowing_screening_done_value = safe_get(raw, "swallowing_screening_done", required=False)
+    swallowing_screening_done = SwallowingScreeningDone.by_id(swallowing_screening_done_value)
+    if swallowing_screening_done is not None:
+        practitioner_role_ref = None
+        swallowing_screening_performer = ScreeningPerformer.by_id(safe_get(raw, "swallowing_screening_performer", required=False)) # Check if swallowing screening test performer is present in raw data, not required
+        if swallowing_screening_performer is not None:  
+            practitioner_role_ref = get_uuid()
+            performer = build_practitioner(swallowing_screening_performer) # Build PractitionerRole resource for swallowing screening test performer
+            entries.append(BundleEntry(fullUrl=practitioner_role_ref, resource=performer, request=BundleEntryRequest(method="POST", url="Practitioner")))
+        swallowing_screening_timing = SwallowingScreeningTiming.by_id(safe_get(raw, "swallowing_screening_timing", required=swallowing_screening_done is SwallowingScreeningDone.YES)) # Check if swallowing screening test timing is present in raw data, not required
+        swallowing_screening_type = SwallowingScreeningType.by_id(safe_get(raw, "swallowing_screening_type", required=False)) # Check if swallowing screening test type is present in raw data, not required
+        procedure_swallowing_screening = build_swallowing_screening_procedure(patient_ref=patient_ref,
+                                                            encounter_ref=encounter_ref,
+                                                            practitioner_role_ref=practitioner_role_ref,
+                                                            swallowing_screening_done=swallowing_screening_done,
+                                                            swallowing_screening_type=swallowing_screening_type,
+                                                            swallowing_screening_timing=swallowing_screening_timing,
+                                                            post_acute_care=bool(post_acute_care)) # Build Procedure resource for swallowing screening test using patient_ref, encounter_ref and stroke diagnosis reference, field not required
+        context.add_resource(procedure_swallowing_screening, sections=(DischargeSection.SIGNIFICANT_PROCEDURES, ), )
 ################################# 4.Discharge Data ############################################### 
 
     ############################### 4.1 MRS and NIHSS at discharge (Observation) ######################################
@@ -1082,26 +1087,25 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
     ################################ 4.2 Treatment at discharge (MedicationRequest) ######################################
     
     discharge_any_med = safe_get_bool(raw, "discharge_any_medication", required=False) # Check if any medication at discharge boolean is present in raw data, not required
-    if discharge_any_med is not None:
-        if discharge_any_med:
-            meds = get_on_discharge_medications(raw) # Obtain list of medications prescribed at discharge from raw data, can be empty if no medications prescribed at discharge
-        else:
-            meds = [Medications.NONE_MEDICATION]
+    meds = get_on_discharge_medications(raw) # Obtain list of medications prescribed at discharge from raw data, can be empty if no medications prescribed at discharge
+    
+    if not meds and discharge_any_med is False:
+        meds = [Medications.NONE_MEDICATION]
 
-        for med_request in build_on_discharge_medicationRequest_profile(patient_ref = patient_ref,
-                                                                        encounter_ref=encounter_ref,
-                                                                        on_discharge_meds=meds): # Build MedicationRequest resources for medications prescribed at discharge using patient_ref, encounter_ref and list of medications prescribed at discharge from raw data, field not required
-            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=med_request, request=BundleEntryRequest(method="POST", url="MedicationRequest")))
-            context.add_resource(med_request, sections=(DischargeSection.DISCHARGE_MEDICATIONS, ), )
-        if Medications.ANTICOAGULANT not in meds:
-            no_anticoagulant_reason = safe_get(raw, "no_anticoagulants_reason", required=False)
-            if no_anticoagulant_reason is not None:
-                observation_no_anticoagulant = build_no_anticoagulant_discharge_medication(patient_ref=patient_ref,
-                                                                                        encounter_ref=encounter_ref,
-                                                                                        no_anticoagulant_discharge_reason=NoAnticoagulantReason.by_id(no_anticoagulant_reason),
-                                                                                        ) # Build Observation resource for no anticoagulant prescribed at discharge using patient_ref, encounter_ref and boolean for any medication at discharge from raw data, field not required
-                #entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_no_anticoagulant, request=BundleEntryRequest(method="POST", url="Observation")))
-                context.add_resource(observation_no_anticoagulant)
+    for med_request in build_on_discharge_medicationRequest_profile(patient_ref = patient_ref,
+                                                                    encounter_ref=encounter_ref,
+                                                                    on_discharge_meds=meds): # Build MedicationRequest resources for medications prescribed at discharge using patient_ref, encounter_ref and list of medications prescribed at discharge from raw data, field not required
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=med_request, request=BundleEntryRequest(method="POST", url="MedicationRequest")))
+        context.add_resource(med_request, sections=(DischargeSection.DISCHARGE_MEDICATIONS, ), )
+    if Medications.ANTICOAGULANT not in meds:
+        no_anticoagulant_reason = safe_get(raw, "no_anticoagulants_reason", required=False)
+        if no_anticoagulant_reason is not None:
+            observation_no_anticoagulant = build_no_anticoagulant_discharge_medication(patient_ref=patient_ref,
+                                                                                    encounter_ref=encounter_ref,
+                                                                                    no_anticoagulant_discharge_reason=NoAnticoagulantReason.by_id(no_anticoagulant_reason),
+                                                                                    ) # Build Observation resource for no anticoagulant prescribed at discharge using patient_ref, encounter_ref and boolean for any medication at discharge from raw data, field not required
+            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=observation_no_anticoagulant, request=BundleEntryRequest(method="POST", url="Observation")))
+            context.add_resource(observation_no_anticoagulant)
     ################################## 4.3 Follow-up appointment (Appointment) ######################################
     stroke_management_appointment = safe_get(raw, "stroke_management_appointment", required=False) # Check if follow-up appointment boolean is present in raw data, not required
     if stroke_management_appointment is not None:
@@ -1147,18 +1151,18 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
         #entries.append(BundleEntry(fullUrl=get_uuid(), resource=three_m_mode_contact_observation, request=BundleEntryRequest(method="POST", url="Observation")))
         context.add_resource(three_m_mode_contact_observation )
     ########################## 5.2 Three-month mRS (Observation) ######################################
-        three_m_mrs = safe_get(raw, "three_m_mrs", required=False) # Check if 3-month mRS value is present in raw data, not required
-        if three_m_mrs is not None:
-            three_m_mrs_observation = build_observation_mrs(patient_ref=patient_ref,
-                                                            encounter_ref=encounter_ref,
-                                                            mrs_score=MRsScore.by_id(three_m_mrs),
-                                                            threem=True) # Build Observation resource for 3-month mRS using patient_ref, encounter_ref and 3-month mRS value from raw data, field not required
-            #entries.append(BundleEntry(fullUrl=get_uuid(), resource=three_m_mrs_observation, request=BundleEntryRequest(method="POST", url="Observation")))
-            context.add_resource(three_m_mrs_observation)
+    three_m_mrs = safe_get(raw, "three_m_mrs", required=False) # Check if 3-month mRS value is present in raw data, not required
+    if three_m_mrs is not None:
+        three_m_mrs_observation = build_observation_mrs(patient_ref=patient_ref,
+                                                        encounter_ref=encounter_ref,
+                                                        mrs_score=MRsScore.by_id(three_m_mrs),
+                                                        threem=True) # Build Observation resource for 3-month mRS using patient_ref, encounter_ref and 3-month mRS value from raw data, field not required
+        #entries.append(BundleEntry(fullUrl=get_uuid(), resource=three_m_mrs_observation, request=BundleEntryRequest(method="POST", url="Observation")))
+        context.add_resource(three_m_mrs_observation)
 
 
 ################################# 6. Timing specific metrics (KPis) ######################################
-    if thrombolysis_procedure_ref is not None :
+    if procedure_thrombolysis_ref is not None :
         door_to_needle_time = safe_get(raw, "door_to_needle", required=False)
         if door_to_needle_time is not None:
             observation_d2n = build_timing_d2n_observation(patient_ref=patient_ref,

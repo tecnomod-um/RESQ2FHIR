@@ -198,7 +198,7 @@ def build_endarterectomy_procedure(patient_ref: str, encounter_ref: str, diagnos
 
     return procedure
 
-def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, practitioner_role_ref: str | None, swallowing_screening_done: SwallowingScreeningDone | None = None, swallowing_screening_type: SwallowingScreeningType | None = None, swallowing_screening_timing: SwallowingScreeningTiming | None = None) -> Procedure:
+def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, practitioner_role_ref: str | None, swallowing_screening_done: SwallowingScreeningDone | None = None, swallowing_screening_type: SwallowingScreeningType | None = None, swallowing_screening_timing: SwallowingScreeningTiming | None = None, post_acute_care: bool = False) -> Procedure:
     """
     Build a FHIR Procedure resource for swallowing screening.
     
@@ -256,7 +256,7 @@ def build_swallowing_screening_procedure(patient_ref: str, encounter_ref: str, p
         
     extension_list.append(Extension(
         url="http://qualityregistry.org/StructureDefinition/post-acute-care-required-ext",
-        valueBoolean=True
+        valueBoolean=post_acute_care
     ))
     
     if len(extension_list) > 0:
@@ -390,10 +390,13 @@ def build_thrombectomy_procedure(thrombectomy: bool, post_acute_care: bool, pati
     
     if thrombectomy is True:
         procedure.status = "completed"
-        if puncture_timestamp is not None and reperfusion_timestamp is not None:
-            puncture_timestamp_dt = parse_datetime(puncture_timestamp)
-            reperfusion_timestamp_dt = parse_datetime(reperfusion_timestamp)
-            procedure.occurrencePeriod = Period(start=puncture_timestamp_dt, end=reperfusion_timestamp_dt)
+
+        puncture_timestamp_dt = (parse_datetime(puncture_timestamp) if puncture_timestamp is not None else None)
+
+        reperfusion_timestamp_dt = (parse_datetime(reperfusion_timestamp) if reperfusion_timestamp is not None  else None )
+
+        if (puncture_timestamp_dt is not None or reperfusion_timestamp_dt is not None):
+            procedure.occurrencePeriod = Period(start=puncture_timestamp_dt,end=reperfusion_timestamp_dt)
 
         if  mt_complications_perforation is True:
             perforation_coding = ThrombectomyComplications.PERFORATION.to_coding()

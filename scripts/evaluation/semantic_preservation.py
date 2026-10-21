@@ -72,12 +72,13 @@ def _as_number(value: Any) -> int | float | None:
 def _as_datetime(value: Any) -> str | None:
     if _missing(value):
         return None
-    parsed = pd.to_datetime(value, errors="coerce")
-    if pd.isna(parsed):
-        return None
-    if getattr(parsed, "tzinfo", None) is not None:
-        parsed = parsed.tz_convert(None)
-    return parsed.isoformat(timespec="seconds")
+
+    parsed = pd.Timestamp(value)
+
+    if parsed.tzinfo is None:
+        parsed = parsed.tz_localize("Europe/Bratislava")
+
+    return parsed.tz_convert("UTC").isoformat()
 
 
 def _coding_tuple(coding: Any) -> tuple[str | None, str | None]:
@@ -570,6 +571,31 @@ def _transaction_bundle_path(bundle_dir: Path, case: str) -> Path | None:
             return candidate
     return None
 
+def _is_applicable(field: str, row) -> bool:
+
+    stroke_type = str(int(row["stroke_type"])) \
+        if not _missing(row.get("stroke_type")) else None
+
+    thrombolysis = _as_bool(row.get("thrombolysis"))
+    thrombectomy = _as_bool(row.get("thrombectomy"))
+
+    if field == "thrombolysis":
+        return stroke_type == "1"
+
+    if field in {"bolus_timestamp", "door_to_needle"}:
+        return stroke_type == "1" and thrombolysis is True
+
+    if field in {
+        "puncture_timestamp",
+        "reperfusion_timestamp",
+        "mtici_score",
+    }:
+        return thrombectomy is True
+
+    if field == "imaging_timestamp":
+        return not _missing(row.get("imaging_type"))
+
+    return True
 
 def evaluate_semantic_preservation(csv_path: Path, bundle_dir: Path) -> dict:
     """Compare normalized source values with their serialized FHIR representation.
@@ -596,7 +622,8 @@ def evaluate_semantic_preservation(csv_path: Path, bundle_dir: Path) -> dict:
             value = row.get(field)
             if _missing(value):
                 continue
-
+            if not _is_applicable(field,row):
+                continue    
             result = _check(field, value, bundle)
             if result is None:
                 continue
