@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from .resource_counts import summarize_resource_counts
-from .semantic_preservation import evaluate_semantic_preservation
+from .semantic_preservation_full import evaluate_semantic_preservation
 
 
 def evaluate_job(normalized_csv: Path, bundle_dir: Path) -> dict:
