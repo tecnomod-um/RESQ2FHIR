@@ -44,7 +44,7 @@ def build_stroke_encounter_profile(
         first_contact_place: The place of first contact for the patient (e.g., pre-hospital, emergency department)
         inhospital_stroke: Boolean indicating if stroke occurred in-hospital
         hospitalized_in: The hospital where the patient was hospitalized
-        hospital_timestamp: Timestamp of hospital admission
+        hospital_timestamp: Timestamp used as the Encounter start for in-hospital stroke
         discharge_date: Date of discharge from hospital
         first_hospital: Boolean indicating if this is the first hospital the patient was admitted to for this stroke event
         post_acute_care: Boolean indicating if post-acute care is required for the patient after discharge
@@ -139,9 +139,10 @@ def build_stroke_encounter_profile(
     encounter.extension = extension_list
 
     encounterPeriod = Period()
-    if inhospital_stroke is not None :
-        if hospital_timestamp is not None:
-            encounterPeriod.start = parse_datetime(hospital_timestamp)
+    # In-hospital stroke uses the hospital timestamp as the relevant Encounter start.
+    # False/None must not trigger this mapping.
+    if inhospital_stroke is True and hospital_timestamp is not None:
+        encounterPeriod.start = parse_datetime(hospital_timestamp)
 
     if discharge_date is not None:
         encounterPeriod.end = parse_datetime(discharge_date)
