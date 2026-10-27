@@ -15,6 +15,7 @@ from scripts.enum_models import (
 from scripts.normalization.sk_registry import OUTPUT_COLUMNS
 from scripts.evaluation.semantic_preservation_full import (
     _check,
+    _is_applicable,
     evaluate_semantic_preservation,
 )
 
@@ -103,6 +104,22 @@ class FullSemanticPreservationTests(unittest.TestCase):
             ],
         }
 
+    @staticmethod
+    def _bundle_with_encounter_start(start=None):
+        encounter = {
+            "resourceType": "Encounter",
+            "meta": {"profile": [
+                "http://qualityregistry.org/StructureDefinition/stroke-encounter-profile"
+            ]},
+        }
+        if start is not None:
+            encounter["actualPeriod"] = {"start": start}
+        return {
+            "resourceType": "Bundle",
+            "type": "transaction",
+            "entry": [{"resource": encounter}],
+        }
+
     def test_eight_serialized_extra_fields_have_readback_comparators(self):
         bundle = self._bundle_with_reversible_extra_representations()
         checks = {
@@ -120,9 +137,46 @@ class FullSemanticPreservationTests(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertIs(_check(field, value, bundle), True)
 
-    def test_two_non_reversible_fields_are_covered_but_fail_preservation(self):
+    def test_inhospital_stroke_is_checked_through_encounter_start(self):
+        hospital_timestamp = "2026-01-15T10:30:00+01:00"
+        matching_bundle = self._bundle_with_encounter_start(hospital_timestamp)
+        wrong_bundle = self._bundle_with_encounter_start("2026-01-15T11:00:00+01:00")
+        no_start_bundle = self._bundle_with_encounter_start()
+        row = {"hospital_timestamp": hospital_timestamp}
+
+        self.assertIs(
+            _check("inhospital_stroke", True, matching_bundle, row=row),
+            True,
+        )
+        self.assertIs(
+            _check("inhospital_stroke", True, wrong_bundle, row=row),
+            False,
+        )
+        self.assertIs(
+            _check("inhospital_stroke", False, matching_bundle, row=row),
+            False,
+        )
+        self.assertIs(
+            _check("inhospital_stroke", False, no_start_bundle, row=row),
+            True,
+        )
+
+    def test_hospital_timestamp_is_only_applicable_to_inhospital_stroke(self):
+        self.assertTrue(_is_applicable(
+            "hospital_timestamp",
+            pd.Series({"inhospital_stroke": True}),
+        ))
+        self.assertFalse(_is_applicable(
+            "hospital_timestamp",
+            pd.Series({"inhospital_stroke": False}),
+        ))
+        self.assertFalse(_is_applicable(
+            "hospital_timestamp",
+            pd.Series({"inhospital_stroke": None}),
+        ))
+
+    def test_only_smoking_field_remains_non_reversible(self):
         bundle = self._bundle_with_reversible_extra_representations()
-        self.assertIs(_check("inhospital_stroke", True, bundle), False)
         self.assertIs(_check("risk_smoker_last_10_years", True, bundle), False)
 
     def test_complete_normalized_contract_is_classified_as_supported(self):
@@ -158,16 +212,17 @@ class FullSemanticPreservationTests(unittest.TestCase):
             self.assertEqual(report["fieldCoverageRate"], 1.0)
             self.assertEqual(
                 report["nonReversibleFields"],
-                ["inhospital_stroke", "risk_smoker_last_10_years"],
+                ["risk_smoker_last_10_years"],
             )
 
-    def test_non_reversible_values_are_counted_as_mismatches(self):
+    def test_inhospital_rule_and_smoking_failure_are_counted_separately(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             csv_path = root / "normalized.csv"
             pd.DataFrame([{
                 "case": "case-1",
                 "inhospital_stroke": True,
+                "hospital_timestamp": "2026-01-15T10:30:00+01:00",
                 "risk_smoker_last_10_years": True,
             }]).to_csv(csv_path, index=False)
 
@@ -176,12 +231,25 @@ class FullSemanticPreservationTests(unittest.TestCase):
             bundle = {
                 "resourceType": "Bundle",
                 "type": "transaction",
-                "entry": [{
-                    "resource": {
-                        "resourceType": "Patient",
-                        "identifier": [{"value": "case-1"}],
-                    }
-                }],
+                "entry": [
+                    {
+                        "resource": {
+                            "resourceType": "Patient",
+                            "identifier": [{"value": "case-1"}],
+                        }
+                    },
+                    {
+                        "resource": {
+                            "resourceType": "Encounter",
+                            "meta": {"profile": [
+                                "http://qualityregistry.org/StructureDefinition/stroke-encounter-profile"
+                            ]},
+                            "actualPeriod": {
+                                "start": "2026-01-15T10:30:00+01:00"
+                            },
+                        }
+                    },
+                ],
             }
             (bundle_dir / "case-1.json").write_text(
                 json.dumps(bundle), encoding="utf-8"
@@ -190,11 +258,14 @@ class FullSemanticPreservationTests(unittest.TestCase):
             report = evaluate_semantic_preservation(csv_path, bundle_dir)
 
             self.assertEqual(report["unsupportedFields"], [])
-            self.assertEqual(report["comparableSourceValues"], 3)
-            self.assertEqual(report["matchedValues"], 1)
-            self.assertEqual(report["mismatchedValues"], 2)
+            self.assertEqual(report["comparableSourceValues"], 4)
+            self.assertEqual(report["matchedValues"], 3)
+            self.assertEqual(report["mismatchedValues"], 1)
             self.assertEqual(
-                report["byField"]["inhospital_stroke"]["mismatched"], 1
+                report["byField"]["inhospital_stroke"]["matched"], 1
+            )
+            self.assertEqual(
+                report["byField"]["hospital_timestamp"]["matched"], 1
             )
             self.assertEqual(
                 report["byField"]["risk_smoker_last_10_years"]["mismatched"], 1
