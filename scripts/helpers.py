@@ -6,6 +6,7 @@ import pandas as pd
 from scripts.enum_models import (
     BodySites, FirstContactPlace, Laterality, StrokeEtiology, Medications, BleedingReason, RiskFactor
 )
+from scripts.local_risk_factors import SMOKING_LAST_10_YEARS
 
 
 def get_encounter_class(first_contact_place: FirstContactPlace):
@@ -149,7 +150,7 @@ def get_bleeding_reason(raw: dict):
 def get_risk_factors(raw: dict):
     """
     Extract risk factors from raw data, categorized by clinical status.
-    Returns: (active, inactive, unknown, remission) tuples of RiskFactor enums
+    Returns: (active, inactive, unknown, remission) tuples of risk-factor concepts.
     """
     risk_factor_active = []
     risk_factor_inactive = []
@@ -171,7 +172,8 @@ def get_risk_factors(raw: dict):
         "risk_vte": RiskFactor.VTE,
         "risk_alcohol_overuse": RiskFactor.ALCOHOL,
         "risk_sleep_apnea": RiskFactor.SLEEP_APNEA,
-        "risk_smoker": RiskFactor.Smoker
+        "risk_smoker": RiskFactor.Smoker,
+        "risk_smoker_last_10_years": SMOKING_LAST_10_YEARS,
     }
 
     for key, med in mapping.items():
@@ -204,13 +206,13 @@ def get_occlusions_list(raw: dict):
         "occlusion_right_mca_m3": (BodySites.MCA_M3,Laterality.RIGHT),
         "occlusion_left_aca": (BodySites.ACA, Laterality.LEFT),
         "occlusion_right_aca": (BodySites.ACA, Laterality.RIGHT),
-        "occlusion_left_cai": (BodySites.CAI, Laterality.LEFT),
+        "occlusion_left_cai": (BodySites.CAI,Laterality.LEFT),
         "occlusion_right_cai": (BodySites.CAI, Laterality.RIGHT),
-        "occlusion_left_pca_p1": (BodySites.PCA_P1, Laterality.LEFT),
-        "occlusion_right_pca_p1": (BodySites.PCA_P1, Laterality.RIGHT),
-        "occlusion_left_pca_p2": (BodySites.PCA_P2, Laterality.LEFT),
-        "occlusion_right_pca_p2": (BodySites.PCA_P2, Laterality.RIGHT),
-        "occlusion_left_cae": (BodySites.CAE, Laterality.LEFT),
+        "occlusion_left_pca_p1": (BodySites.PCA_P1,Laterality.LEFT),
+        "occlusion_right_pca_p1": (BodySites.PCA_P1,Laterality.RIGHT),
+        "occlusion_left_pca_p2": (BodySites.PCA_P2,Laterality.LEFT),
+        "occlusion_right_pca_p2": (BodySites.PCA_P2,Laterality.RIGHT),
+        "occlusion_left_cae": (BodySites.CAE,Laterality.LEFT),
         "occlusion_right_cae": (BodySites.CAE, Laterality.RIGHT),
     }
     for key, body_site in mapping.items():
