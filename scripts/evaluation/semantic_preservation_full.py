@@ -8,13 +8,11 @@ from typing import Any
 import pandas as pd
 
 from scripts.enum_models import (
-    AdmissionPathway,
     ImagingDone,
     ImagingType,
     NoThrombectomyReason,
     NoThrombolysisReason,
     ProcedureNotDoneReason,
-    RiskFactor,
     ThrombectomyComplications,
 )
 
@@ -36,10 +34,14 @@ EXTRA_FIELDS = {
 
 SUPPORTED_FIELDS = set(base.SUPPORTED_FIELDS) | EXTRA_FIELDS
 
-
-def _clinical_status_code(condition: dict) -> str | None:
-    codings = ((condition.get("clinicalStatus") or {}).get("coding") or [])
-    return codings[0].get("code") if codings else None
+# These normalized assertions are currently consumed by the transformation path
+# but do not have an independently reversible FHIR representation in the
+# evaluated contract. They remain comparator-covered so that populated values
+# are reported as semantic-preservation failures rather than silently excluded.
+NON_REVERSIBLE_FIELDS = {
+    "inhospital_stroke",
+    "risk_smoker_last_10_years",
+}
 
 
 def _organization_candidates(bundle: dict) -> list[dict]:
@@ -95,8 +97,8 @@ def _carotid_arteries_imaging(bundle: dict, value: Any) -> bool | None:
     if expected:
         return any(procedure.get("status") == "completed" for procedure in procedures)
 
-    # A negative source assertion is preserved either by omitting the optional
-    # carotid-imaging resource or by explicitly serializing a not-done Procedure.
+    # The converter creates the specialized resource only when carotid imaging
+    # applies. Therefore absence is a reversible negative assertion here.
     return not procedures or any(
         procedure.get("status") == "not-done" for procedure in procedures
     )
@@ -140,20 +142,16 @@ def _imaging_done(bundle: dict, value: Any) -> bool:
     return False
 
 
-def _inhospital_stroke(bundle: dict, value: Any) -> bool | None:
+def _non_reversible_assertion(value: Any) -> bool | None:
+    """Flag a populated normalized assertion that cannot be read back from FHIR.
+
+    Returning False is deliberate: the evaluator covers the field, but the
+    current transformation does not preserve it in an independently reversible
+    target representation. This distinguishes 100% evaluator coverage from
+    semantic-preservation success.
+    """
     expected = base._as_bool(value)
-    if expected is None:
-        return None
-
-    encounter = base._encounter(bundle)
-    if encounter is None:
-        return False
-
-    admit_source = (encounter.get("admission") or {}).get("admitSource")
-    serialized = base._concept_has(
-        admit_source, base._enum_coding(AdmissionPathway.INHOSPITAL_STROKE)
-    )
-    return serialized is expected
+    return None if expected is None else False
 
 
 def _procedure_status_reason(bundle: dict, procedure_code: Any, reason: Any) -> bool:
@@ -193,48 +191,6 @@ def _onset_timestamp(bundle: dict, value: Any) -> bool:
     )
 
 
-def _smoking_last_10_years(bundle: dict, value: Any) -> bool | None:
-    """Read back the broad smoking-within-10-years assertion.
-
-    The normalized source field is Boolean and does not retain the distinction
-    between current and former smoking. Therefore a positive value accepts
-    either a current-smoker or ex-smoker risk-factor representation. A negative
-    value accepts either an explicit non-smoker concept or an inactive smoker
-    condition. Absence of any reversible smoking representation is a mismatch,
-    not a silent exclusion.
-    """
-    expected = base._as_bool(value)
-    if expected is None:
-        return None
-
-    smoker = base._enum_coding(RiskFactor.Smoker)
-    ex_smoker = base._enum_coding(RiskFactor.Ex_Smoker)
-    non_smoker = base._enum_coding(RiskFactor.Non_Smoker)
-
-    conditions = base._profile_resources(
-        bundle, "Condition", "stroke-risk-factor-condition-profile"
-    )
-
-    if expected:
-        return any(
-            (
-                base._concept_has(condition.get("code"), smoker)
-                or base._concept_has(condition.get("code"), ex_smoker)
-            )
-            and _clinical_status_code(condition) != "inactive"
-            for condition in conditions
-        )
-
-    return any(
-        base._concept_has(condition.get("code"), non_smoker)
-        or (
-            base._concept_has(condition.get("code"), smoker)
-            and _clinical_status_code(condition) == "inactive"
-        )
-        for condition in conditions
-    )
-
-
 def _check(field: str, value: Any, bundle: dict) -> bool | None:
     if field in base.SUPPORTED_FIELDS:
         return base._check(field, value, bundle)
@@ -247,8 +203,8 @@ def _check(field: str, value: Any, bundle: dict) -> bool | None:
         return _carotid_arteries_imaging(bundle, value)
     if field == "imaging_done":
         return _imaging_done(bundle, value)
-    if field == "inhospital_stroke":
-        return _inhospital_stroke(bundle, value)
+    if field in NON_REVERSIBLE_FIELDS:
+        return _non_reversible_assertion(value)
     if field == "onset_timestamp":
         return _onset_timestamp(bundle, value)
     if field == "mt_complications_perforation":
@@ -269,8 +225,6 @@ def _check(field: str, value: Any, bundle: dict) -> bool | None:
                 bundle, base.PerforationProcedures.THROMBECTOMY, member
             )
         )
-    if field == "risk_smoker_last_10_years":
-        return _smoking_last_10_years(bundle, value)
     return None
 
 
@@ -305,12 +259,11 @@ def _is_applicable(field: str, row: pd.Series) -> bool:
 
 
 def evaluate_semantic_preservation(csv_path: Path, bundle_dir: Path) -> dict:
-    """Evaluate all normalized fields with deterministic read-back comparators.
+    """Evaluate all normalized fields with deterministic comparator coverage.
 
-    Every normalized column is classified as supported or unsupported. Values
-    are counted only when populated and contextually applicable. A supported
-    field whose expected FHIR representation is absent is recorded as a
-    mismatch rather than being dropped from the denominator.
+    Values are counted only when populated and contextually applicable. A
+    comparator-covered field whose semantic value cannot be recovered from the
+    generated FHIR is recorded as a mismatch rather than being excluded.
     """
     df = pd.read_csv(csv_path, encoding="utf-8")
     per_field: dict[str, Counter] = {}
@@ -374,6 +327,9 @@ def evaluate_semantic_preservation(csv_path: Path, bundle_dir: Path) -> dict:
         ),
         "supportedFields": supported,
         "unsupportedFields": unsupported,
+        "nonReversibleFields": sorted(
+            field for field in normalized_fields if field in NON_REVERSIBLE_FIELDS
+        ),
         "fieldsWithComparableValues": sorted(by_field),
         "comparableSourceValues": comparable,
         "matchedValues": matched,
