@@ -9,13 +9,13 @@ class InHospitalStrokeEncounterMappingTests(unittest.TestCase):
             patient_ref="urn:uuid:patient",
             arrival_mode=None,
             inhospital_stroke=True,
-            hospital_timestamp="2026-01-15T10:30:00+01:00",
+            hospital_timestamp="2026-01-15 10:30:00",
         )
 
         self.assertIsNotNone(encounter.actualPeriod)
         self.assertEqual(
             encounter.actualPeriod.start.isoformat(),
-            "2026-01-15T10:30:00+01:00",
+            "2026-01-15T10:30:00",
         )
 
     def test_false_does_not_use_hospital_timestamp_as_encounter_start(self):
@@ -23,7 +23,7 @@ class InHospitalStrokeEncounterMappingTests(unittest.TestCase):
             patient_ref="urn:uuid:patient",
             arrival_mode=None,
             inhospital_stroke=False,
-            hospital_timestamp="2026-01-15T10:30:00+01:00",
+            hospital_timestamp="2026-01-15 10:30:00",
         )
 
         self.assertIsNotNone(encounter.actualPeriod)
@@ -34,7 +34,7 @@ class InHospitalStrokeEncounterMappingTests(unittest.TestCase):
             patient_ref="urn:uuid:patient",
             arrival_mode=None,
             inhospital_stroke=None,
-            hospital_timestamp="2026-01-15T10:30:00+01:00",
+            hospital_timestamp="2026-01-15 10:30:00",
         )
 
         self.assertIsNotNone(encounter.actualPeriod)
