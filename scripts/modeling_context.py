@@ -19,6 +19,7 @@ from fhir.resources.bundle import BundleEntry, BundleEntryRequest
 
 from scripts.discharge_summary.sections import SECTION_DEFINITIONS
 from scripts.enum_models import DischargeSection
+from scripts.semantic_contract_repair import repair_semantic_contract
 from scripts.utils import TransformError, get_uuid
 
 
@@ -88,6 +89,8 @@ class StrokeCaseContext:
         contain discharge-summary section assignments. Legacy resources still
         appended directly to transaction_entries are indexed here with no section.
         """
+
+        repair_semantic_contract(self)
 
         preserved_sections = {
             full_url: set(record.sections)
