@@ -1,5 +1,7 @@
 import unittest
 
+from fhir.resources.codeableconcept import CodeableConcept
+from fhir.resources.coding import Coding
 from fhir.resources.condition import Condition
 from fhir.resources.meta import Meta
 from fhir.resources.reference import Reference
@@ -48,6 +50,10 @@ class SemanticContractRepairTests(unittest.TestCase):
         )
         condition = Condition(
             subject=Reference(reference=context.patient_ref),
+            clinicalStatus=CodeableConcept(coding=[Coding(
+                system="http://terminology.hl7.org/CodeSystem/condition-clinical",
+                code="active",
+            )]),
             meta=Meta(profile=[STROKE_PROFILE]),
         )
         context.add_resource(condition, full_url="urn:uuid:condition")
