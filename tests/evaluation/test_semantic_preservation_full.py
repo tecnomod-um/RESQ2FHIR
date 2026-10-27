@@ -6,12 +6,10 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.enum_models import (
-    AdmissionPathway,
     ImagingType,
     NoThrombectomyReason,
     NoThrombolysisReason,
     PerforationProcedures,
-    RiskFactor,
     ThrombectomyComplications,
 )
 from scripts.normalization.sk_registry import OUTPUT_COLUMNS
@@ -39,7 +37,7 @@ def concept(member):
 
 
 class FullSemanticPreservationTests(unittest.TestCase):
-    def _bundle_with_all_extra_representations(self):
+    def _bundle_with_reversible_extra_representations(self):
         imaging_member = ImagingType.by_id("1")
         self.assertIsNotNone(imaging_member)
 
@@ -59,34 +57,11 @@ class FullSemanticPreservationTests(unittest.TestCase):
                 },
                 {
                     "resource": {
-                        "resourceType": "Encounter",
-                        "meta": {"profile": [
-                            "http://qualityregistry.org/StructureDefinition/stroke-encounter-profile"
-                        ]},
-                        "admission": {
-                            "admitSource": concept(AdmissionPathway.INHOSPITAL_STROKE)
-                        },
-                    }
-                },
-                {
-                    "resource": {
                         "resourceType": "Condition",
                         "meta": {"profile": [
                             "http://qualityregistry.org/StructureDefinition/stroke-diagnosis-condition-profile"
                         ]},
                         "onsetDateTime": "2026-01-15T10:30:00+01:00",
-                    }
-                },
-                {
-                    "resource": {
-                        "resourceType": "Condition",
-                        "meta": {"profile": [
-                            "http://qualityregistry.org/StructureDefinition/stroke-risk-factor-condition-profile"
-                        ]},
-                        "code": concept(RiskFactor.Smoker),
-                        "clinicalStatus": {
-                            "coding": [{"code": "active"}]
-                        },
                     }
                 },
                 {
@@ -128,24 +103,27 @@ class FullSemanticPreservationTests(unittest.TestCase):
             ],
         }
 
-    def test_all_ten_previously_excluded_fields_have_comparators(self):
-        bundle = self._bundle_with_all_extra_representations()
+    def test_eight_serialized_extra_fields_have_readback_comparators(self):
+        bundle = self._bundle_with_reversible_extra_representations()
         checks = {
             "provider": "Example Hospital",
             "provider_id": "12345",
             "carotid_arteries_imaging": True,
             "imaging_done": "1",
-            "inhospital_stroke": True,
             "mt_complications_perforation": True,
             "no_thrombolysis_reason": "1",
             "no_thrombectomy_reason": "1",
             "onset_timestamp": "2026-01-15T10:30:00+01:00",
-            "risk_smoker_last_10_years": True,
         }
 
         for field, value in checks.items():
             with self.subTest(field=field):
                 self.assertIs(_check(field, value, bundle), True)
+
+    def test_two_non_reversible_fields_are_covered_but_fail_preservation(self):
+        bundle = self._bundle_with_reversible_extra_representations()
+        self.assertIs(_check("inhospital_stroke", True, bundle), False)
+        self.assertIs(_check("risk_smoker_last_10_years", True, bundle), False)
 
     def test_complete_normalized_contract_is_classified_as_supported(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -178,8 +156,12 @@ class FullSemanticPreservationTests(unittest.TestCase):
             self.assertEqual(report["unsupportedFieldCount"], 0)
             self.assertEqual(report["unsupportedFields"], [])
             self.assertEqual(report["fieldCoverageRate"], 1.0)
+            self.assertEqual(
+                report["nonReversibleFields"],
+                ["inhospital_stroke", "risk_smoker_last_10_years"],
+            )
 
-    def test_missing_reversible_representation_is_counted_as_mismatch(self):
+    def test_non_reversible_values_are_counted_as_mismatches(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             csv_path = root / "normalized.csv"
@@ -194,22 +176,12 @@ class FullSemanticPreservationTests(unittest.TestCase):
             bundle = {
                 "resourceType": "Bundle",
                 "type": "transaction",
-                "entry": [
-                    {
-                        "resource": {
-                            "resourceType": "Patient",
-                            "identifier": [{"value": "case-1"}],
-                        }
-                    },
-                    {
-                        "resource": {
-                            "resourceType": "Encounter",
-                            "meta": {"profile": [
-                                "http://qualityregistry.org/StructureDefinition/stroke-encounter-profile"
-                            ]},
-                        }
-                    },
-                ],
+                "entry": [{
+                    "resource": {
+                        "resourceType": "Patient",
+                        "identifier": [{"value": "case-1"}],
+                    }
+                }],
             }
             (bundle_dir / "case-1.json").write_text(
                 json.dumps(bundle), encoding="utf-8"
