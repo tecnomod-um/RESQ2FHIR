@@ -171,6 +171,7 @@ def get_risk_factors(raw: dict):
         "risk_vte": RiskFactor.VTE,
         "risk_alcohol_overuse": RiskFactor.ALCOHOL,
         "risk_sleep_apnea": RiskFactor.SLEEP_APNEA,
+        "risk_smoker": RiskFactor.Smoker
     }
 
     for key, med in mapping.items():
