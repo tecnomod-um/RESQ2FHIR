@@ -8,7 +8,7 @@ from fhir.resources.coding import Coding
 
 
 STROKE_RISK_FACTOR_CODE_SYSTEM = (
-    "http://qualityregistry.org/CodeSystem/stroke-risk-factor-cs"
+    "http://qualityregistry.org/CodeSystem/risk-factor-cs"
 )
 
 
