@@ -34,12 +34,11 @@ EXTRA_FIELDS = {
 
 SUPPORTED_FIELDS = set(base.SUPPORTED_FIELDS) | EXTRA_FIELDS
 
-# These normalized assertions are currently consumed by the transformation path
-# but do not have an independently reversible FHIR representation in the
-# evaluated contract. They remain comparator-covered so that populated values
-# are reported as semantic-preservation failures rather than silently excluded.
+# This normalized assertion is consumed by the transformation path but does not
+# yet have an independently reversible FHIR representation in the evaluated
+# contract. It remains comparator-covered so populated values are reported as
+# semantic-preservation failures rather than silently excluded.
 NON_REVERSIBLE_FIELDS = {
-    "inhospital_stroke",
     "risk_smoker_last_10_years",
 }
 
@@ -154,6 +153,47 @@ def _non_reversible_assertion(value: Any) -> bool | None:
     return None if expected is None else False
 
 
+def _stroke_encounter(bundle: dict) -> dict | None:
+    encounters = base._profile_resources(
+        bundle, "Encounter", "stroke-encounter-profile"
+    )
+    if encounters:
+        return encounters[0]
+    encounters = base._resources(bundle, "Encounter")
+    return encounters[0] if encounters else None
+
+
+def _inhospital_stroke(
+    bundle: dict,
+    value: Any,
+    hospital_timestamp: Any,
+) -> bool | None:
+    """Evaluate the transformation rule controlled by inhospital_stroke.
+
+    The normalized flag is not serialized as an independent Boolean. Instead,
+    when it is true the source hospital_timestamp must become
+    Encounter.actualPeriod.start. When it is false, that timestamp must not be
+    used as the Encounter start by this rule.
+    """
+    expected = base._as_bool(value)
+    if expected is None:
+        return None
+
+    encounter = _stroke_encounter(bundle)
+    if encounter is None:
+        return False
+
+    actual_period = encounter.get("actualPeriod") or {}
+    actual_start = base._as_datetime(actual_period.get("start"))
+
+    if expected is True:
+        if base._missing(hospital_timestamp):
+            return False
+        return actual_start == base._as_datetime(hospital_timestamp)
+
+    return actual_start is None
+
+
 def _procedure_status_reason(bundle: dict, procedure_code: Any, reason: Any) -> bool:
     procedure = base._find_procedure(bundle, procedure_code)
     return bool(
@@ -191,7 +231,16 @@ def _onset_timestamp(bundle: dict, value: Any) -> bool:
     )
 
 
-def _check(field: str, value: Any, bundle: dict) -> bool | None:
+def _check(
+    field: str,
+    value: Any,
+    bundle: dict,
+    row: pd.Series | dict | None = None,
+) -> bool | None:
+    if field == "inhospital_stroke":
+        hospital_timestamp = None if row is None else row.get("hospital_timestamp")
+        return _inhospital_stroke(bundle, value, hospital_timestamp)
+
     if field in base.SUPPORTED_FIELDS:
         return base._check(field, value, bundle)
 
@@ -239,6 +288,13 @@ def _stroke_type_id(row: pd.Series) -> str | None:
 
 
 def _is_applicable(field: str, row: pd.Series) -> bool:
+    inhospital_stroke = base._as_bool(row.get("inhospital_stroke"))
+
+    # hospital_timestamp is a transformation input only for in-hospital stroke.
+    # It must not be treated as an expected Encounter start for other cases.
+    if field == "hospital_timestamp":
+        return inhospital_stroke is True
+
     if field in base.SUPPORTED_FIELDS:
         return base._is_applicable(field, row)
 
@@ -287,7 +343,7 @@ def evaluate_semantic_preservation(csv_path: Path, bundle_dir: Path) -> dict:
             if not _is_applicable(field, row):
                 continue
 
-            result = _check(field, value, bundle)
+            result = _check(field, value, bundle, row=row)
             if result is None:
                 continue
 
