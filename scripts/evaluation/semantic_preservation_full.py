@@ -15,6 +15,7 @@ from scripts.enum_models import (
     ProcedureNotDoneReason,
     ThrombectomyComplications,
 )
+from scripts.local_risk_factors import SMOKING_LAST_10_YEARS
 
 from . import semantic_preservation as base
 
@@ -34,13 +35,9 @@ EXTRA_FIELDS = {
 
 SUPPORTED_FIELDS = set(base.SUPPORTED_FIELDS) | EXTRA_FIELDS
 
-# This normalized assertion is consumed by the transformation path but does not
-# yet have an independently reversible FHIR representation in the evaluated
-# contract. It remains comparator-covered so populated values are reported as
-# semantic-preservation failures rather than silently excluded.
-NON_REVERSIBLE_FIELDS = {
-    "risk_smoker_last_10_years",
-}
+# All normalized contract fields now have an independently testable target
+# representation or deterministic transformation rule.
+NON_REVERSIBLE_FIELDS: set[str] = set()
 
 
 def _organization_candidates(bundle: dict) -> list[dict]:
@@ -142,13 +139,7 @@ def _imaging_done(bundle: dict, value: Any) -> bool:
 
 
 def _non_reversible_assertion(value: Any) -> bool | None:
-    """Flag a populated normalized assertion that cannot be read back from FHIR.
-
-    Returning False is deliberate: the evaluator covers the field, but the
-    current transformation does not preserve it in an independently reversible
-    target representation. This distinguishes 100% evaluator coverage from
-    semantic-preservation success.
-    """
+    """Retained for backward compatibility with older evaluator extensions."""
     expected = base._as_bool(value)
     return None if expected is None else False
 
@@ -192,6 +183,41 @@ def _inhospital_stroke(
         return actual_start == base._as_datetime(hospital_timestamp)
 
     return actual_start is None
+
+
+def _smoking_last_10_years(bundle: dict, value: Any) -> bool | None:
+    """Read back the local RES-Q smoking-history risk-factor Condition.
+
+    ``True`` is represented by an active risk-factor Condition and ``False`` by
+    the same Condition with clinicalStatus=inactive. This preserves the source
+    assertion without incorrectly equating it to current-smoker SNOMED CT.
+    """
+    expected = base._as_bool(value)
+    if expected is None:
+        return None
+
+    expected_status = "active" if expected else "inactive"
+    for condition in base._profile_resources(
+        bundle, "Condition", "stroke-risk-factor-condition-profile"
+    ):
+        code_codings = (condition.get("code") or {}).get("coding") or []
+        has_smoking_code = any(
+            coding.get("system") == SMOKING_LAST_10_YEARS.system
+            and coding.get("code") == SMOKING_LAST_10_YEARS.code
+            for coding in code_codings
+            if isinstance(coding, dict)
+        )
+        if not has_smoking_code:
+            continue
+
+        status_codings = (condition.get("clinicalStatus") or {}).get("coding") or []
+        return any(
+            coding.get("code") == expected_status
+            for coding in status_codings
+            if isinstance(coding, dict)
+        )
+
+    return False
 
 
 def _procedure_status_reason(bundle: dict, procedure_code: Any, reason: Any) -> bool:
@@ -252,6 +278,8 @@ def _check(
         return _carotid_arteries_imaging(bundle, value)
     if field == "imaging_done":
         return _imaging_done(bundle, value)
+    if field == "risk_smoker_last_10_years":
+        return _smoking_last_10_years(bundle, value)
     if field in NON_REVERSIBLE_FIELDS:
         return _non_reversible_assertion(value)
     if field == "onset_timestamp":
