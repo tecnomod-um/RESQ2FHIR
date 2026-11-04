@@ -214,6 +214,7 @@ RISK_FACTORS = {
     "risk_hypertension": RiskFactor.Hypertension,
     "risk_diabetes": RiskFactor.Diabetes,
     "risk_hyperlipidemia": RiskFactor.Hyperlipidemia,
+    "risk_smoker": RiskFactor.Smoker,
     "risk_previous_stroke": RiskFactor.PreviousStroke,
     "risk_previous_ischemic_stroke": RiskFactor.PreviousIschemicStroke,
     "risk_previous_hemorrhagic_stroke": RiskFactor.PreviousHemorrhagicStroke,
@@ -232,6 +233,7 @@ PRIOR_MEDS = {
     "before_onset_other_anticoagulant": Medications.OTHER_ANTICOAGULANT,
     "before_onset_statin": Medications.STATIN,
     "before_onset_warfarin": Medications.WARFARIN,
+    "before_onset_doak": Medications.DOAC,
 }
 
 DISCHARGE_MEDS = {
@@ -243,6 +245,8 @@ DISCHARGE_MEDS = {
     "discharge_other": Medications.OTHER_MEDICATION,
     "discharge_statin": Medications.STATIN,
     "discharge_warfarin": Medications.WARFARIN,
+    "discharge_doak": Medications.DOAC,
+    "discharge_antidepressants": Medications.ANTIDEPRESSANT,
 }
 
 STROKE_ETIOLOGY = {
@@ -342,27 +346,38 @@ def _risk_factor(bundle: dict, field: str, value: Any) -> bool:
 
 def _prior_med(bundle: dict, field: str, value: Any) -> bool:
     expected = _as_bool(value)
-    medication_code = _enum_coding(PRIOR_MEDS[field])
+    # The 2024 DOAC field may be the only specific anticoagulant. When
+    # present we avoid generating a duplicate generic MedicationStatement.
+    members = [PRIOR_MEDS[field]]
+    if field == "before_onset_any_anticoagulant" and expected is True:
+        members.append(Medications.DOAC)
     adherence = AdherenceCodes.TAKING if expected is True else AdherenceCodes.NOT_TAKING
     for statement in _profile_resources(
         bundle, "MedicationStatement", "prior-medication-statement-profile"
     ):
         medication = ((statement.get("medication") or {}).get("concept") or {})
-        if not _concept_has(medication, medication_code):
+        if not any(_concept_has(medication, _enum_coding(m)) for m in members):
             continue
         adherence_concept = ((statement.get("adherence") or {}).get("code") or {})
-        return _concept_has(adherence_concept, _enum_coding(adherence))
+        if _concept_has(adherence_concept, _enum_coding(adherence)):
+            return True
     return False
 
 
 def _discharge_med(bundle: dict, field: str, value: Any) -> bool:
     expected = _as_bool(value)
-    medication_code = _enum_coding(DISCHARGE_MEDS[field])
+    members = [DISCHARGE_MEDS[field]]
+    if field == "discharge_any_anticoagulant" and expected is True:
+        members.append(Medications.DOAC)
     found = any(
-        _concept_has(((request.get("medication") or {}).get("concept") or {}), medication_code)
+        _concept_has(
+            ((request.get("medication") or {}).get("concept") or {}),
+            _enum_coding(member),
+        )
         for request in _profile_resources(
             bundle, "MedicationRequest", "discharge-medication-request-profile"
         )
+        for member in members
     )
     return found if expected is True else not found
 
