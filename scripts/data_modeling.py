@@ -21,6 +21,10 @@ from scripts.fhir_resources.practitionerRole import build_practitioner
 from scripts.fhir_resources.procedure import build_carotid_imaging_procedure, build_craniectomy_procedure, build_cvt_treatment_procedure, build_endarterectomy_procedure, build_ich_treatment_procedure, build_imaging_procedure, build_occupational_therapy_procedure, build_physioterapy_procedure, build_post_neurosurgery_imaging_procedure, build_post_recanalization_imaging_procedure, build_sah_treatment_procedure, build_speech_therapy_procedure, build_thrombolysis_procedure, build_thrombectomy_procedure, build_swallowing_screening_procedure, build_vte_procedure
 from scripts.fhir_resources.medicationStatement import build_before_onset_medicationStatement_profile
 from scripts.fhir_resources.medicationRequest import build_on_discharge_medicationRequest_profile
+from scripts.fhir_resources.discharge_medication_status import (
+    build_any_discharge_medication_answer,
+    build_discharge_medication_answers_2024,
+)
 from scripts.helpers import get_before_onset_medications, get_bleeding_reason, get_occlusions_list, get_on_discharge_medications, get_risk_factors, get_stroke_etiology
 from scripts.utils import get_uuid, safe_get, safe_get_bool, ensure_dependency
 from scripts.modeling_context import StrokeCaseContext
@@ -1090,8 +1094,26 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
     discharge_any_med = safe_get_bool(raw, "discharge_any_medication", required=False) # Check if any medication at discharge boolean is present in raw data, not required
     meds = get_on_discharge_medications(raw) # Obtain list of medications prescribed at discharge from raw data, can be empty if no medications prescribed at discharge
     
-    if not meds and discharge_any_med is False:
-        meds = [Medications.NONE_MEDICATION]
+    # A negative answer is an observed registry fact, not an active order
+    # to prescribe a synthetic "No Medication" substance.
+    if "discharge_any_medication" in raw and discharge_any_med is not True:
+        context.add_resource(
+            build_any_discharge_medication_answer(
+                answer=discharge_any_med,
+                patient_ref=patient_ref,
+                encounter_ref=encounter_ref,
+            ),
+            sections=(DischargeSection.DISCHARGE_MEDICATIONS,),
+        )
+
+    # Keep explicit NO distinct from an unanswered (UNKNOWN) field.
+    # YES is already represented by the positive MedicationRequest below.
+    for medication_answer in build_discharge_medication_answers_2024(
+        raw=raw, patient_ref=patient_ref, encounter_ref=encounter_ref
+    ):
+        context.add_resource(
+            medication_answer, sections=(DischargeSection.DISCHARGE_MEDICATIONS,)
+        )
 
     for med_request in build_on_discharge_medicationRequest_profile(patient_ref = patient_ref,
                                                                     encounter_ref=encounter_ref,
