@@ -17,6 +17,11 @@ from scripts.fhir_resources.condition import build_risk_factor_condition_profile
 from scripts.fhir_resources.medicationRequest import build_on_discharge_medicationRequest_profile
 from scripts.fhir_resources.medicationStatement import build_before_onset_medicationStatement_profile
 from scripts.fhir_resources.observation import build_observation_vital_signs
+from scripts.fhir_resources.discharge_medication_status import (
+    STATUS_CODE_SYSTEM,
+    build_any_discharge_medication_answer,
+    build_discharge_medication_answers_2024,
+)
 from scripts.evaluation.semantic_preservation import _check
 from scripts.normalization.sk_registry import normalize_sk_registry_dataframe
 
@@ -209,6 +214,119 @@ class HistoricalIncidents2024Tests(unittest.TestCase):
                 self.assertEqual(
                     target, observation.component[0].code.coding[0].code
                 )
+
+
+    def test_discharge_asa_three_distinct_fhir_states(self):
+        # All three source answers are intentionally different in the bundle.
+        for source, expected in (("1", True), ("2", False), (None, None)):
+            with self.subTest(source=source):
+                norm, _ = normalize_sk_registry_dataframe(
+                    pd.DataFrame([{"UKON_ASA": source}])
+                )
+                row = norm.iloc[0].to_dict()
+                self.assertEqual(expected, row["discharge_asa"])
+                orders = build_on_discharge_medicationRequest_profile(
+                    on_discharge_meds=get_on_discharge_medications(row),
+                    patient_ref=PATIENT,
+                    encounter_ref=ENCOUNTER,
+                )
+                answers = build_discharge_medication_answers_2024(
+                    raw=row, patient_ref=PATIENT, encounter_ref=ENCOUNTER
+                )
+                fhir_bundle = {
+                    "resourceType": "Bundle",
+                    "type": "transaction",
+                    "entry": [
+                        {"resource": resource.model_dump(
+                            by_alias=True, exclude_none=True
+                        )}
+                        for resource in orders + answers
+                    ],
+                }
+                self.assertTrue(_check(
+                    "discharge_asa", expected, fhir_bundle
+                ))
+                asa_orders = [
+                    med for med in orders if med_code(med) == Medications.ASA.code
+                ]
+                asa_answers = [
+                    obs for obs in answers
+                    if obs.component[0].valueCodeableConcept.coding[0].code
+                    == Medications.ASA.code
+                ]
+                if expected is True:
+                    self.assertEqual(1, len(asa_orders))
+                    self.assertEqual([], asa_answers)
+                elif expected is False:
+                    self.assertEqual([], asa_orders)
+                    self.assertEqual(1, len(asa_answers))
+                    self.assertIs(asa_answers[0].valueBoolean, False)
+                    self.assertIsNone(asa_answers[0].dataAbsentReason)
+                else:
+                    self.assertEqual([], asa_orders)
+                    self.assertEqual(1, len(asa_answers))
+                    self.assertIsNone(asa_answers[0].valueBoolean)
+                    self.assertEqual(
+                        "unknown",
+                        asa_answers[0].dataAbsentReason.coding[0].code,
+                    )
+
+    def test_unknown_not_accepted_as_explicit_no_or_yes(self):
+        no = build_discharge_medication_answers_2024(
+            raw={"discharge_asa": False},
+            patient_ref=PATIENT, encounter_ref=ENCOUNTER,
+        )
+        unknown = build_discharge_medication_answers_2024(
+            raw={"discharge_asa": None},
+            patient_ref=PATIENT, encounter_ref=ENCOUNTER,
+        )
+        self.assertEqual(1, len(no))
+        self.assertEqual(1, len(unknown))
+        self.assertFalse(_check("discharge_asa", None, bundle(no[0])))
+        self.assertFalse(_check("discharge_asa", False, bundle(unknown[0])))
+        self.assertFalse(_check("discharge_asa", True, bundle(no[0])))
+        self.assertFalse(_check("discharge_asa", True, bundle(unknown[0])))
+
+    def test_unprovided_contract_field_makes_no_unsupported_assertion(self):
+        self.assertEqual([], build_discharge_medication_answers_2024(
+            raw={}, patient_ref=PATIENT, encounter_ref=ENCOUNTER,
+        ))
+        self.assertFalse(_check("discharge_asa", False, {
+            "resourceType": "Bundle", "type": "transaction", "entry": [],
+        }))
+
+    def test_discharge_no_medication_is_not_fabricated_as_active_order(self):
+        obs = build_any_discharge_medication_answer(
+            answer=False, patient_ref=PATIENT, encounter_ref=ENCOUNTER
+        )
+        self.assertIs(obs.valueBoolean, False)
+        self.assertEqual(
+            "any-medication-prescribed-at-discharge",
+            obs.code.coding[0].code,
+        )
+
+    def test_all_eight_original_2024_discharge_classes_are_supported(self):
+        # Every source-specific class can represent known NO and UNKNOWN.
+        source = {
+            "discharge_asa": False,
+            "discharge_clopidogrel": False,
+            "discharge_warfarin": False,
+            "discharge_heparin": False,
+            "discharge_doak": False,
+            "discharge_statin": False,
+            "discharge_other": False,
+            "discharge_antidepressants": False,
+        }
+        answers = build_discharge_medication_answers_2024(
+            raw=source, patient_ref=PATIENT, encounter_ref=ENCOUNTER
+        )
+        self.assertEqual(8, len(answers))
+        expected_status_code = "medication-prescribed-at-discharge"
+        for obs in answers:
+            self.assertEqual(STATUS_CODE_SYSTEM, obs.code.coding[0].system)
+            self.assertEqual(expected_status_code, obs.code.coding[0].code)
+            self.assertIs(obs.valueBoolean, False)
+            self.assertIsNone(obs.dataAbsentReason)
 
 
 if __name__ == "__main__":
