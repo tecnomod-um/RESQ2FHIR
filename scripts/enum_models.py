@@ -608,6 +608,7 @@ class RiskFactor(ConceptEnum):
     VTE = ("VTE", {"code": "429098002", "display": "Thromboembolism of vein (disorder)", "system": "http://snomed.info/sct"})
     ALCOHOL = ("Alcohol", {"code": "66590003", "display": "Alcohol dependence (disorder)", "system": "http://snomed.info/sct"})
     SLEEP_APNEA = ("Sleep Apnea", {"code": "73430006", "display": "Sleep apnea (disorder)", "system": "http://snomed.info/sct"})
+    Smoking10Years = ("Smoking10Years", {"code": "smoking-last-10-years", "display": "Smoking within the last 10 years", "system": "http://qualityregistry.org/CodeSystem/risk-factor-cs"})
     
 class Bool(ConceptEnum):
     TRUE = ("True", {"code": "true", "display": "True", "system": "http://hl7.org/fhir/bool"})

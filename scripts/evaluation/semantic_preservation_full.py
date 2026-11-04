@@ -13,9 +13,9 @@ from scripts.enum_models import (
     NoThrombectomyReason,
     NoThrombolysisReason,
     ProcedureNotDoneReason,
+    RiskFactor,
     ThrombectomyComplications,
 )
-from scripts.local_risk_factors import SMOKING_LAST_10_YEARS
 
 from . import semantic_preservation as base
 
@@ -202,8 +202,8 @@ def _smoking_last_10_years(bundle: dict, value: Any) -> bool | None:
     ):
         code_codings = (condition.get("code") or {}).get("coding") or []
         has_smoking_code = any(
-            coding.get("system") == SMOKING_LAST_10_YEARS.system
-            and coding.get("code") == SMOKING_LAST_10_YEARS.code
+            coding.get("system") == RiskFactor.Smoking10Years.system
+            and coding.get("code") == RiskFactor.Smoking10Years.code
             for coding in code_codings
             if isinstance(coding, dict)
         )

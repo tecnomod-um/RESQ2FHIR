@@ -6,7 +6,6 @@ import pandas as pd
 from scripts.enum_models import (
     BodySites, FirstContactPlace, Laterality, StrokeEtiology, Medications, BleedingReason, RiskFactor
 )
-from scripts.local_risk_factors import SMOKING_LAST_10_YEARS
 
 
 def get_encounter_class(first_contact_place: FirstContactPlace):
@@ -173,7 +172,7 @@ def get_risk_factors(raw: dict):
         "risk_alcohol_overuse": RiskFactor.ALCOHOL,
         "risk_sleep_apnea": RiskFactor.SLEEP_APNEA,
         "risk_smoker": RiskFactor.Smoker,
-        "risk_smoker_last_10_years": SMOKING_LAST_10_YEARS,
+        "risk_smoker_last_10_years": RiskFactor.Smoking10Years,
     }
 
     for key, med in mapping.items():
