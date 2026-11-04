@@ -146,6 +146,15 @@ class HistoricalIncidents2024Tests(unittest.TestCase):
                         "risk_smoker", value, bundle(conditions[0])
                     ))
 
+    def test_explicit_contract_smoking_true_false_stays_typed(self):
+        source = pd.DataFrame([
+            {"risk_smoker": True},
+            {"risk_smoker": False},
+        ])
+        normalized, _ = normalize_sk_registry_dataframe(source)
+        self.assertEqual(True, normalized.loc[0, "risk_smoker"])
+        self.assertEqual(False, normalized.loc[1, "risk_smoker"])
+
     def test_slovak_2024_source_not_assumed_to_mean_current_smoking(self):
         normalized, _ = normalize_sk_registry_dataframe(
             pd.DataFrame([{"OA_FAJCENIE": "3"}])
