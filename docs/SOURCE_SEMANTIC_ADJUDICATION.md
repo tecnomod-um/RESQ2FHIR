@@ -4,6 +4,30 @@
 
 **Reference implementation:** `scripts/normalization/sk_registry.py`; independent aggregate audit: `scripts/evaluation/source_contract_audit.py`. These source-to-contract assertions complement but do not replace `scripts/evaluation/semantic_preservation_full.py`, which evaluates **normalized contract → serialized transaction FHIR**.
 
+## SHM/RES-Q destination data-catalogue cross-check (user-supplied export; revision unverified)
+
+An SHM `InpatientCase` and choice-model data-catalogue excerpt was supplied for review. It **documents destination-contract field meanings**, not the semantic definitions of the original 2024 Slovak source columns. Source-to-contract equivalence still needs original-source evidence.
+
+| SHM field | Destination data-catalogue wording | Implication |
+| --- | --- | --- |
+| `prestroke_mrs` | “Value of modified Rankin Scale (mRS) prior of the stroke onset” | RES-Q target means **before stroke**, unequivocally; does **not** prove `STAV_M_RANKIN_2` has this 2024 source meaning. |
+| `puncture_timestamp` | “date and time (or best estimate) of groin puncture in mechanical thrombectomy procedure” | RES-Q target means **actual groin puncture**; does **not** prove `DATUM_ENDO_V` is the same event. |
+| `door_to_groin` | Reporting hospital first-door → groin puncture | This derived interval is sensitive to the ambiguous event interpretation. |
+| `no_thrombolysis_reason` / reason ID 1 | “done elsewhere” | Confirms the **destination code** used to represent local non-performance; no evidence it serializes an external completed event. |
+| `bolus_timestamp` | Date and time of IVT treatment | Destination contract has the field; remote IVT time remains unrepresented in the current generated local `Procedure`. |
+| `door_to_needle` | First door of reporting hospital → application of IVT drug | Excluding external IVT from local D2N is justified by the destination definition. |
+
+### **Critical data-catalogue discrepancy: mTICI 2A/2B descriptions**
+
+The supplied SHM `MTiciScoreModel` rows state:
+
+- ID 3, `2A`: “partial reperfusion > 50 % territory”
+- ID 4, `2B`: “partial reperfusion <= 50 % territory”
+
+These are **reversed relative to standard mTICI definitions** (2a <50%; 2b ≥50%) and relative to the actual `scripts/enum_models.py` `MTiciScore.TWO_A` / `TWO_B` displays (less-than-half versus more-than-half). See the American Heart Association's TICI grade abstraction definition: https://www.heart.org/-/media/Files/Professional/Quality-Improvement/Get-With-the-Guidelines/Get-With-The-Guidelines-Stroke/Workshops-and-Webinars/Get-With-The-Guidelines-Stroke-Mechanical-Endovascular-Reperfusion-Therapy-SLIDES-ucm_494077.pdf
+
+**Do not swap the 2a/2b target codes or source mappings based solely on the supplied catalogue.** Obtain catalogue maintainer confirmation and correct the **catalogue metadata** if these are transposed descriptions. Otherwise, review the deployed code system and current clinical data separately. Do not call the clinical relation equivalent until adjudicated. The supplied excerpt provides no source-repository SHA, edition or timestamp; record provenance before treating it as controlled metadata.
+
 ## Source evidence and version boundary
 
 Use the **2024** `ZR_NEUR_CMP` form/code list, not later forms as a substitute for the evaluated export. Consult the Slovak registry clinical/metadata custodian when the form or code list does not define a clinical time point or a procedural event unambiguously.
