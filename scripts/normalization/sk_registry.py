@@ -373,7 +373,10 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     out["door_to_needle"] = [_minute_difference(bolus, hospital) for bolus, hospital in zip(out.get("bolus_timestamp", empty), out.get("hospital_timestamp", empty))]
     # Door-to-needle is a reporting-hospital performance metric. A bolus
     # administered elsewhere must not be timed against this hospital arrival.
-    out.loc[out["thrombolysis"].ne(True), "door_to_needle"] = None
+    if "thrombolysis" in out:
+        out.loc[out["thrombolysis"].ne(True), "door_to_needle"] = None
+    else:
+        out["door_to_needle"] = None
     out["door_to_groin"] = [_minute_difference(puncture, hospital) for puncture, hospital in zip(out.get("puncture_timestamp", empty), out.get("hospital_timestamp", empty))]
     out.loc[df.get("mtici_score", empty).map(_key) == "000", "reperfusion_timestamp"] = None
 
