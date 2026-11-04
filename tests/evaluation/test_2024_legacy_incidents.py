@@ -14,6 +14,13 @@ from scripts.helpers import (
     get_risk_factors,
 )
 from scripts.fhir_resources.condition import build_risk_factor_condition_profile
+from scripts.discharge_summary.narrative import observation_summary
+from scripts.discharge_summary.document import build_discharge_composition
+from scripts.enum_models import DischargeSection
+from scripts.modeling_context import StrokeCaseContext
+from fhir.resources.patient import Patient
+from fhir.resources.encounter import Encounter
+from fhir.resources.organization import Organization
 from scripts.fhir_resources.medicationRequest import build_on_discharge_medicationRequest_profile
 from scripts.fhir_resources.medicationStatement import build_before_onset_medicationStatement_profile
 from scripts.fhir_resources.observation import build_observation_vital_signs
@@ -327,6 +334,57 @@ class HistoricalIncidents2024Tests(unittest.TestCase):
             self.assertEqual(expected_status_code, obs.code.coding[0].code)
             self.assertIs(obs.valueBoolean, False)
             self.assertIsNone(obs.dataAbsentReason)
+
+
+    def test_discharge_narrative_explicitly_states_no_or_unknown(self):
+        false_obs, = build_discharge_medication_answers_2024(
+            raw={"discharge_asa": False},
+            patient_ref=PATIENT, encounter_ref=ENCOUNTER,
+        )
+        unknown_obs, = build_discharge_medication_answers_2024(
+            raw={"discharge_asa": None},
+            patient_ref=PATIENT, encounter_ref=ENCOUNTER,
+        )
+        self.assertIn(
+            "not prescribed at discharge", observation_summary(false_obs)
+        )
+        self.assertIn(
+            "unknown", observation_summary(unknown_obs)
+        )
+
+    def test_discharge_negative_is_in_document_medication_section(self):
+        obs, = build_discharge_medication_answers_2024(
+            raw={"discharge_asa": False},
+            patient_ref=PATIENT, encounter_ref=ENCOUNTER,
+        )
+        ctx = StrokeCaseContext(
+            case_id="test-2024-medication",
+            raw={},
+            patient_ref=PATIENT,
+            encounter_ref=ENCOUNTER,
+            organization_ref="urn:uuid:test-org",
+        )
+        ctx.add_resource(Patient(), full_url=PATIENT)
+        ctx.add_resource(Encounter(status="completed"), full_url=ENCOUNTER)
+        ctx.add_resource(Organization(name="Registry"), full_url="urn:uuid:test-org")
+        ref = ctx.add_resource(
+            obs, sections=(DischargeSection.DISCHARGE_MEDICATIONS,)
+        )
+        document = build_discharge_composition(ctx)
+
+        def all_sections(sections):
+            for section in sections or []:
+                yield section
+                yield from all_sections(getattr(section, "section", None))
+
+        self.assertTrue(
+            any(
+                entry.reference == ref
+                for section in all_sections(document.section)
+                for entry in (section.entry or [])
+            ),
+            "Negative medication status must be serialized in document Composition",
+        )
 
 
 if __name__ == "__main__":
