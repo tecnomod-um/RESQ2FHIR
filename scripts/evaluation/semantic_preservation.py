@@ -7,6 +7,11 @@ from typing import Any
 
 import pandas as pd
 
+from scripts.fhir_resources.discharge_medication_status import (
+    DISCHARGE_MEDICATION_2024,
+    STATUS_CODE_SYSTEM,
+)
+
 from scripts.enum_models import (
     AdherenceCodes,
     AdmissionPathway,
@@ -379,6 +384,52 @@ def _discharge_med(bundle: dict, field: str, value: Any) -> bool:
         )
         for member in members
     )
+
+    # The source-backed NCZI 2024 yes/no fields have three *different*
+    # FHIR representations. An absent order alone is never evidence of NO.
+    if field in DISCHARGE_MEDICATION_2024:
+        med = DISCHARGE_MEDICATION_2024[field]
+        observations = [
+            obs for obs in _resources(bundle, "Observation")
+            if _concept_has(
+                obs.get("code"),
+                (STATUS_CODE_SYSTEM, "medication-prescribed-at-discharge"),
+            )
+            and any(
+                _concept_has(
+                    component.get("valueCodeableConcept"), _enum_coding(med)
+                )
+                for component in (obs.get("component") or [])
+                if _concept_has(
+                    component.get("code"), (STATUS_CODE_SYSTEM, "medication-class")
+                )
+            )
+        ]
+        if expected is True:
+            # TRUE is an actual MedicationRequest and cannot coexist with a
+            # negative or explicitly unknown answer for the same category.
+            return found and not observations
+        if expected is False:
+            return (
+                not found
+                and len(observations) == 1
+                and observations[0].get("valueBoolean") is False
+                and "dataAbsentReason" not in observations[0]
+            )
+        # UNKNOWN: explicit answer with the standard unknown missing-reason
+        # coding, not a guessed false and not a positive medication order.
+        return (
+            not found
+            and len(observations) == 1
+            and "valueBoolean" not in observations[0]
+            and _concept_has(
+                observations[0].get("dataAbsentReason"),
+                ("http://terminology.hl7.org/CodeSystem/data-absent-reason",
+                 "unknown"),
+            )
+        )
+
+    # Generic/derived aggregate flags retain their existing interpretation.
     return found if expected is True else not found
 
 
@@ -560,7 +611,9 @@ def _check(field: str, value: Any, bundle: dict) -> bool | None:
     if field in PRIOR_MEDS:
         return None if _as_bool(value) is None else _prior_med(bundle, field, value)
     if field in DISCHARGE_MEDS:
-        return None if _as_bool(value) is None else _discharge_med(bundle, field, value)
+        return _discharge_med(bundle, field, value) if (
+            _as_bool(value) is not None or field in DISCHARGE_MEDICATION_2024
+        ) else None
     if field in STROKE_ETIOLOGY:
         return _positive_condition_extension(
             bundle, "ischemic-stroke-etiology-ext", STROKE_ETIOLOGY[field], value
