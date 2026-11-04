@@ -298,7 +298,7 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
         code = _key(value)
         if code is None:
             return None
-        if re.fullmatch(r"\\d+", code):
+        if re.fullmatch(r"\d+", code):
             return str(int(code))
         return code
 
