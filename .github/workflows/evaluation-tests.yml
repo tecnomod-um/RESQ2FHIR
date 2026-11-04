@@ -9,6 +9,8 @@ on:
     paths:
       - 'scripts/evaluation/**'
       - 'tests/evaluation/**'
+      - 'scripts/normalization/**'
+      - 'tests/fhir_resources/test_slovak_regressions.py'
       - '.github/workflows/evaluation-tests.yml'
 
 jobs:
@@ -31,8 +33,9 @@ jobs:
 
       - name: Compile evaluation modules
         run: |
-          python -m py_compile scripts/evaluation/resource_counts.py scripts/evaluation/semantic_preservation.py scripts/evaluation/semantic_preservation_full.py scripts/evaluation/evaluate.py
+          python -m py_compile scripts/evaluation/resource_counts.py scripts/evaluation/semantic_preservation.py scripts/evaluation/semantic_preservation_full.py scripts/evaluation/evaluate.py scripts/evaluation/source_contract_audit.py scripts/normalization/sk_registry.py
 
       - name: Run evaluation unit tests
         run: |
           python -m unittest discover -s tests/evaluation -p 'test_*.py' -v
+          python -m unittest discover -s tests/fhir_resources -p 'test_slovak_regressions.py' -v
