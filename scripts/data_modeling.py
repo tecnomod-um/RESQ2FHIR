@@ -246,7 +246,8 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
     systolic_pressure = safe_get(raw, "systolic_pressure", required=False) # Check if systolic pressure is present in raw data, not required
     diastolic_pressure = safe_get(raw, "diastolic_pressure", required=False) # Check if diastolic pressure is present in raw data, not required
 
-    if systolic_pressure is not None and diastolic_pressure is not None:
+    # Preserve either source component even if its paired measurement is missing.
+    if systolic_pressure is not None or diastolic_pressure is not None:
         observation_vital_signs_ref = get_uuid()
         observation_vital_signs = build_observation_vital_signs(patient_ref=patient_ref, # Build Observation resource for vital signs using patient_ref, encounter_ref, systolic_pressure and diastolic_pressure
                                                                 encounter_ref=encounter_ref,
