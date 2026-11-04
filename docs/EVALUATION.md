@@ -69,6 +69,40 @@ The report contains two top-level sections:
 - `resourceCounts`
 - `semanticPreservation`
 
+
+## 3. Slovak source-to-contract technical checks (RQ1/M2)
+
+The **separate** `scripts.evaluation.source_contract_audit` verifies selected
+original Slovak field values against the normalized contract, rather than only
+checking normalized values against FHIR. It covers the numeric mRS copy,
+endovascular timestamp copy, TICI grade recoding and the reporting-hospital
+thrombolysis status/elsewhere reason. It flags externally administered bolus
+timestamps whose original value is not evaluated in FHIR.
+
+Run (with the **same row order** and the 2024 source schema):
+
+```bash
+python -m scripts.evaluation.source_contract_audit \
+  --source <slovak_source.csv> \
+  --normalized <normalized.csv> \
+  --out <source_contract_audit.json>
+```
+
+This report is aggregate-only; it never serializes patient-level values. It is
+**not a clinical adjudication**: correctness of the original mRS timepoint, the
+puncture-time interpretation and the TICI/mTICI conceptual correspondence still
+requires independent source/expert review. See
+[`SOURCE_SEMANTIC_ADJUDICATION.md`](SOURCE_SEMANTIC_ADJUDICATION.md) and the
+unfilled [expert audit template](source_to_fhir_expert_audit_template.csv).
+
+**Important current limitation:** `NL_TROMBOLYZA=2` indicates that treatment
+was performed at another hospital. The existing RES-Q contract records local
+non-administration plus coded `DONE_ELSEWHERE` and preserves the source bolus
+timestamp in the normalized CSV. The current FHIR builder does not serialize
+this external bolus timestamp. Therefore the combined pipeline does **not**
+yet demonstrate complete source-to-FHIR preservation for that specific event.
+Do not update previous evaluation totals without a versioned rerun.
+
 ## Scientific interpretation
 
 FHIR profile validation and semantic preservation are separate outcomes.
