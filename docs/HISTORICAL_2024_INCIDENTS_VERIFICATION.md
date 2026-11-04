@@ -21,13 +21,25 @@
 - A broad `discharge_any_anticoagulant` / `before_onset_any_anticoagulant` asserted by a specific DOAC medication is evaluated by recognizing the subtype representation, rather than requiring an artificial second medication order.
 - If the registry requires first-class **individual DOAC substances** rather than the aggregate DOAC class, that is *not derivable* from the 2024 categorical `UKON_DOAK` / `OA_ANTIKOAGULANCIA=06` alone.
 
-## Remaining semantic adjudication of explicit negative versus unknown
+## Explicit decisions for 2024 risk factors and discharge medication status
 
-The synthetic tests establish that the **normalized contract** can carry separate `True`, `False` and `None` values, and that `Condition` and `MedicationStatement` map those to distinct serialized statuses. They **do not establish that all of these statuses are clinically correct**: `Condition.clinicalStatus=inactive` for a risk factor that was *never present* may be over-specific.
+**Decision confirmed by IG stakeholder (2026-11-04):** Retain the existing four-way `Condition` pattern for risk factors **without modification**:
+`True→active`, `False→inactive`, `None→unknown`, and previously documented stroke risks → `remission`. This is an **explicit RES-Q registry-specific modeling convention**, not a general assertion that `inactive` is FHIR's recommended way to record never-present history. The existing atrial fibrillation `verificationStatus=differential` remains an independent terminology issue and is not changed here.
 
-Moreover, an explicitly negative discharge medication (`False`) and an unknown discharge medication (`None`) currently **both generate no positive `MedicationRequest`**. This does not preserve the negative/unknown distinction in FHIR. Source-contract values remain distinct, but full source→FHIR parity requires an IG data-model decision. See [issue #26](https://github.com/tecnomod-um/RESQ2FHIR/issues/26).
+**Decision confirmed (2026-11-04):** Preserve **TRUE / FALSE / UNKNOWN separately in the FHIR output** for 2024 discharge medication questions. The proposed representation in this branch is:
 
-The proposed new DOAC and antidepressant medication codes require terminology/IG alignment and full profile validation before any end-to-end closure; see [issue #25](https://github.com/tecnomod-um/RESQ2FHIR/issues/25).
+| Source normalized answer | FHIR representation | Clinical assertion |
+| --- | --- | --- |
+| `True` | Positive `MedicationRequest` only | That medication class is prescribed at discharge |
+| `False` | `Observation.valueBoolean=false` | That medication class was explicitly not prescribed at discharge |
+| `None` when source-backed field appears in the normalized contract | `Observation.dataAbsentReason=unknown`, without `value[x]` | Information on prescription of that class is unavailable |
+| Field **not provided** by the input contract | Neither request nor assertion Observation | No source assertion; do not infer negatives or unknowns for unavailable fields |
+
+The `Observation` uses a proposed local code `http://qualityregistry.org/CodeSystem/discharge-medication-prescription-status-cs#medication-prescribed-at-discharge`, and a `medication-class` component coded using the original registry medication class. These are **proposed local IG codes**, not yet approved/published; update the authoritative IG before merging. The generic `discharge_any_medication=False` is now encoded as a negative aggregate Observation (if the field was supplied), rather than a misleading **active** `MedicationRequest` for a synthetic `NONE_MEDICATION`.
+
+**Scope:** The original independent 2024 fields are ASA, clopidogrel, warfarin, heparin, DOAC, statins, other/nootropics, and antidepressants. Derived `discharge_any_anticoagulant` / `discharge_any_antiplatelet` flags **do not produce extra status assertions**. Nulls are documented as unknown *not as false*. In the 2024 normalizer, even a blank field yields an explicit `None` in the output schema. Consequently, the new branch emits unknown Observation instances for blank entries of these standard source fields; **FHIR resource counts and evaluation baselines must be recalculated**.
+
+**Validation policy:** Synthetic regression tests must distinguish all three states in both the transaction Bundle and the discharge medication section of document Bundles, check contradictory representations, and verify absent-field behavior. Clinical deployment requires IG CodeSystem/ValueSet/profile updates (including support for `Observation` entries in the medication-summary Composition section) and FHIR R5 profile validation. See [issue #26](https://github.com/tecnomod-um/RESQ2FHIR/issues/26).
 
 ## Scientific limits
 
