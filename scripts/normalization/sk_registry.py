@@ -299,6 +299,24 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     out["no_thrombolysis_reason"] = df.get("no_thrombolysis_reason", empty).map(lambda value: _map_value(value, NO_THROMBOLYSIS_REASON_MAP))
     out.loc[df.get("no_ivt_reason_time_window", empty).map(_key) == "1", "no_thrombolysis_reason"] = "2"
     out.loc[df.get("no_ivt_reason_mild_deficit", empty).map(_key) == "1", "no_thrombolysis_reason"] = "3"
+    # NCZI NL_TROMBOLYZA: 1 = administered in reporting hospital,
+    # 2 = administered at another hospital, 3 = not administered.
+    # The existing RES-Q Boolean contract is scoped to the reporting hospital:
+    # preserve the elsewhere distinction in the companion coded reason.
+    # Apply after generic non-administration reasons so source value 2 wins;
+    # conflicting source flags must still be investigated in clinical audit.
+    elsewhere_ivt = df.get("thrombolysis", empty).map(_key).eq("2")
+    conflicting_ivt_reasons = elsewhere_ivt & (
+        df.get("no_ivt_reason_time_window", empty).map(_key).eq("1")
+        | df.get("no_ivt_reason_mild_deficit", empty).map(_key).eq("1")
+    )
+    if conflicting_ivt_reasons.any():
+        logger.warning(
+            "%d rows report thrombolysis elsewhere and a no-treatment reason; "
+            "retaining elsewhere for the contract, review the conflicting source flags",
+            int(conflicting_ivt_reasons.sum()),
+        )
+    out.loc[elsewhere_ivt, "no_thrombolysis_reason"] = "1"
     out["no_thrombectomy_reason"] = df.get("no_thrombectomy_reason", empty).map(lambda value: _map_value(value, NO_THROMBECTOMY_REASON_MAP))
     out.loc[df.get("no_mt_reason_time_window", empty).map(_key) == "1", "no_thrombectomy_reason"] = "2"
     out.loc[df.get("no_mt_reason_mild_deficit", empty).map(_key) == "1", "no_thrombectomy_reason"] = "3"
