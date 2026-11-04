@@ -44,9 +44,9 @@ class HistoricalIncidents2024Tests(unittest.TestCase):
                 normalized, _ = normalize_sk_registry_dataframe(
                     pd.DataFrame([{"OA_ANTIKOAGULANCIA": source}])
                 )
-                self.assertIs(normalized.loc[0, "before_onset_warfarin"], True)
-                self.assertIs(normalized.loc[0, "before_onset_doak"], False)
-                self.assertIs(normalized.loc[0, "before_onset_any_anticoagulant"], True)
+                self.assertEqual(normalized.loc[0, "before_onset_warfarin"], True)
+                self.assertEqual(normalized.loc[0, "before_onset_doak"], False)
+                self.assertEqual(normalized.loc[0, "before_onset_any_anticoagulant"], True)
 
     def test_anticoagulant_code_06_and_6_preserve_doac(self):
         for source in ("06", "6", 6, 6.0):
@@ -54,9 +54,9 @@ class HistoricalIncidents2024Tests(unittest.TestCase):
                 normalized, _ = normalize_sk_registry_dataframe(
                     pd.DataFrame([{"OA_ANTIKOAGULANCIA": source}])
                 )
-                self.assertIs(normalized.loc[0, "before_onset_doak"], True)
-                self.assertIs(normalized.loc[0, "before_onset_warfarin"], False)
-                self.assertIs(normalized.loc[0, "before_onset_any_anticoagulant"], True)
+                self.assertEqual(normalized.loc[0, "before_onset_doak"], True)
+                self.assertEqual(normalized.loc[0, "before_onset_warfarin"], False)
+                self.assertEqual(normalized.loc[0, "before_onset_any_anticoagulant"], True)
                 taking, _, _ = get_before_onset_medications(
                     normalized.iloc[0].to_dict()
                 )
@@ -88,10 +88,10 @@ class HistoricalIncidents2024Tests(unittest.TestCase):
         }])
         normalized, _ = normalize_sk_registry_dataframe(source)
         row = normalized.iloc[0].to_dict()
-        self.assertIs(row["discharge_doak"], True)
-        self.assertIs(row["discharge_antidepressants"], True)
-        self.assertIs(row["discharge_other"], False)
-        self.assertIs(row["discharge_any_anticoagulant"], True)
+        self.assertEqual(row["discharge_doak"], True)
+        self.assertEqual(row["discharge_antidepressants"], True)
+        self.assertEqual(row["discharge_other"], False)
+        self.assertEqual(row["discharge_any_anticoagulant"], True)
         meds = get_on_discharge_medications(row)
         self.assertIn(Medications.DOAC, meds)
         self.assertIn(Medications.ANTIDEPRESSANT, meds)
@@ -150,7 +150,7 @@ class HistoricalIncidents2024Tests(unittest.TestCase):
         normalized, _ = normalize_sk_registry_dataframe(
             pd.DataFrame([{"OA_FAJCENIE": "3"}])
         )
-        self.assertIs(normalized.loc[0, "risk_smoker_last_10_years"], True)
+        self.assertEqual(normalized.loc[0, "risk_smoker_last_10_years"], True)
         self.assertIsNone(normalized.loc[0, "risk_smoker"])
 
     def test_med_statement_true_false_unknown_keep_different_adherence(self):
