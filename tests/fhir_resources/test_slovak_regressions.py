@@ -5,6 +5,8 @@ import pandas as pd
 
 from scripts.normalization.sk_registry import normalize_sk_registry_dataframe
 from scripts.data_modeling import _add_thrombolysis_location
+from scripts.enum_models import NoThrombolysisReason
+from scripts.fhir_resources.procedure import build_thrombolysis_procedure
 
 
 class SlovakRegressionTests(unittest.TestCase):
@@ -30,6 +32,62 @@ class SlovakRegressionTests(unittest.TestCase):
         self.assertEqual("1", normalized.loc[1, "stroke_type"])
         self.assertEqual(True, normalized.loc[1, "stroke_etiology_cardioembolism"])
         self.assertEqual(False, normalized.loc[1, "stroke_etiology_la_atherosclerosis"])
+
+    def test_thrombolysis_at_reporting_hospital_elsewhere_and_not_given(self):
+        source = pd.DataFrame([
+            {
+                "KKD_TYP_SPEC": "5",  # Ischemic
+                "NL_TROMBOLYZA": "1",
+                "DATUM_LEKAR": "05/21/2026 12:10",
+                "NL_DATUM_TROMBOLYZA": "05/21/2026 12:40",
+            },
+            {
+                "KKD_TYP_SPEC": "5",
+                "NL_TROMBOLYZA": "2",  # Administered in another hospital
+                "DATUM_LEKAR": "05/21/2026 13:10",
+                "NL_DATUM_TROMBOLYZA": "05/21/2026 12:40",
+            },
+            {"KKD_TYP_SPEC": "5", "NL_TROMBOLYZA": "3"},  # Not given
+        ])
+
+        normalized, _ = normalize_sk_registry_dataframe(source)
+
+        self.assertEqual([True, False, False], normalized["thrombolysis"].tolist())
+        self.assertTrue(pd.isna(normalized.loc[0, "no_thrombolysis_reason"]))
+        self.assertEqual("1", normalized.loc[1, "no_thrombolysis_reason"])
+        self.assertTrue(pd.isna(normalized.loc[2, "no_thrombolysis_reason"]))
+        self.assertEqual(30, normalized.loc[0, "door_to_needle"])
+        self.assertTrue(pd.isna(normalized.loc[1, "door_to_needle"]))
+        self.assertEqual(
+            "2026-05-21 12:40:00", normalized.loc[1, "bolus_timestamp"]
+        )
+
+    def test_elsewhere_dominates_conflicting_no_ivt_flags_and_warns(self):
+        source = pd.DataFrame([{
+            "KKD_TYP_SPEC": "5",
+            "NL_TROMBOLYZA": "2",
+            "DNTL_MIMO_CAS": "1",
+        }])
+
+        with self.assertLogs("scripts.normalization.sk_registry", level="WARNING"):
+            normalized, _ = normalize_sk_registry_dataframe(source)
+
+        self.assertEqual("1", normalized.loc[0, "no_thrombolysis_reason"])
+
+    def test_elsewhere_reason_is_serializable_in_current_resq_profile(self):
+        procedure = build_thrombolysis_procedure(
+            patient_ref="urn:uuid:patient",
+            encounter_ref="urn:uuid:encounter",
+            condition_ref="urn:uuid:condition",
+            thrombolysis=False,
+            no_thrombolysis_reason_id=NoThrombolysisReason.DONE_ELSEWHERE,
+        )
+
+        self.assertEqual("not-done", procedure.status)
+        self.assertEqual(
+            NoThrombolysisReason.DONE_ELSEWHERE.code,
+            procedure.statusReason.coding[0].code,
+        )
 
     def test_missing_ivt_department_does_not_create_location_reference(self):
         context = Mock()
