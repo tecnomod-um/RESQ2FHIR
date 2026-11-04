@@ -190,6 +190,10 @@ def _map_value(value: Any, mapping: dict[str, Any]) -> Any:
 
 
 def _to_bool(value: Any) -> bool | None:
+    # Accept existing Python/pandas Boolean contract values without converting
+    # them to the strings "True"/"False", which are not 2024 NCZI code keys.
+    if isinstance(value, bool):
+        return value
     return _map_value(value, BOOL_MAP)
 
 
