@@ -86,7 +86,7 @@ COLUMN_MAPPING = {
     "UKON_DOAK": "discharge_doak",
     "UKON_STATIN": "discharge_statin",
     "UKON_NOOTROPIKA": "discharge_other",
-    "UKON_ANTIDEPRESIVA": "discharge_other2",
+    "UKON_ANTIDEPRESIVA": "discharge_antidepressants",
 }
 
 SEX_MAP = {"1": "1", "2": "2", "9": "3"}
@@ -107,7 +107,7 @@ NO_THROMBOLYSIS_REASON_MAP = {"2": "1", "3": "7"}
 NO_THROMBECTOMY_REASON_MAP = {"2": "1", "3": "8"}
 
 BOOLEAN_COLUMNS = [
-    "risk_tia", "wakeup_stroke", "risk_hyperlipidemia",
+    "risk_tia", "wakeup_stroke", "risk_hyperlipidemia", "risk_smoker",
     "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction",
@@ -117,7 +117,7 @@ BOOLEAN_COLUMNS = [
     "before_onset_contraception", "thrombolysis", "thrombectomy",
     "carotid_arteries_imaging", "discharge_asa", "discharge_clopidogrel",
     "discharge_warfarin", "discharge_doak", "discharge_heparin",
-    "discharge_statin", "discharge_other", "discharge_other2",
+    "discharge_statin", "discharge_other", "discharge_antidepressants",
     "mt_complications_perforation",
 ]
 
@@ -134,10 +134,10 @@ OUTPUT_COLUMNS = [
     "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction", "risk_diabetes",
-    "risk_atrial_fibrillation", "risk_hypertension", "risk_smoker_last_10_years",
+    "risk_atrial_fibrillation", "risk_hypertension", "risk_smoker", "risk_smoker_last_10_years",
     "before_onset_antidiabetics", "before_onset_antihypertensives",
     "before_onset_asa", "before_onset_clopidogrel", "before_onset_statin",
-    "before_onset_contraception", "before_onset_warfarin",
+    "before_onset_contraception", "before_onset_warfarin", "before_onset_doak",
     "before_onset_other_anticoagulant", "before_onset_any_antiplatelet",
     "before_onset_any_anticoagulant", "imaging_done", "imaging_type",
     "imaging_timestamp", "stroke_type", "thrombolysis", "bolus_timestamp",
@@ -154,7 +154,7 @@ OUTPUT_COLUMNS = [
     "discharge_facility_department", "discharge_date", "discharge_mrs",
     "three_m_mrs", "discharge_nihss_score", "discharge_asa",
     "discharge_clopidogrel", "discharge_warfarin", "discharge_heparin",
-    "discharge_statin", "discharge_other", "discharge_any_antiplatelet",
+    "discharge_doak", "discharge_antidepressants", "discharge_statin", "discharge_other", "discharge_any_antiplatelet",
     "discharge_any_anticoagulant", "post_acute_care",
 ]
 
@@ -285,15 +285,33 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
 
     out["risk_previous_ischemic_stroke"] = out.apply(lambda row: _disjunction(row, ["risk_previous_ischemic_stroke", "risk_tia"]), axis=1)
     out["risk_previous_stroke"] = out.apply(lambda row: _disjunction(row, ["risk_previous_ischemic_stroke", "risk_previous_hemorrhagic_stroke"]), axis=1)
-    out["discharge_other"] = out.apply(lambda row: _disjunction(row, ["discharge_other", "discharge_other2"]), axis=1)
     out["before_onset_any_antiplatelet"] = out.apply(lambda row: _disjunction(row, ["before_onset_asa", "before_onset_clopidogrel"]), axis=1)
     out["discharge_any_antiplatelet"] = out.apply(lambda row: _disjunction(row, ["discharge_asa", "discharge_clopidogrel"]), axis=1)
     out["discharge_any_anticoagulant"] = out.apply(lambda row: _disjunction(row, ["discharge_warfarin", "discharge_heparin", "discharge_doak"]), axis=1)
 
     anticoagulant_source = df.get("before_onset_anticoagulants", empty)
-    out["before_onset_warfarin"] = anticoagulant_source.map(lambda value: _key(value) == "01" if not _is_missing(value) else None)
-    out["before_onset_other_anticoagulant"] = anticoagulant_source.map(lambda value: _key(value) == "98" if not _is_missing(value) else None)
-    out["before_onset_doak"] = anticoagulant_source.map(lambda value: _key(value) == "06" if not _is_missing(value) else None)
+    # The 2024 Slovak source export has appeared with both 01/06 and 1/6
+    # (including numeric/float representations). Canonicalize *only* this
+    # single-select numeric code; never coerce it to a boolean or apply
+    # zero-stripping to unrelated categorical sources such as TICI.
+    def anticoagulant_code(value: Any) -> str | None:
+        code = _key(value)
+        if code is None:
+            return None
+        if re.fullmatch(r"\\d+", code):
+            return str(int(code))
+        return code
+
+    anticoagulant_codes = anticoagulant_source.map(anticoagulant_code)
+    out["before_onset_warfarin"] = anticoagulant_codes.map(
+        lambda code: code == "1" if code is not None else None
+    )
+    out["before_onset_other_anticoagulant"] = anticoagulant_codes.map(
+        lambda code: code == "98" if code is not None else None
+    )
+    out["before_onset_doak"] = anticoagulant_codes.map(
+        lambda code: code == "6" if code is not None else None
+    )
     out["before_onset_any_anticoagulant"] = out.apply(lambda row: _disjunction(row, ["before_onset_warfarin", "before_onset_other_anticoagulant", "before_onset_doak"]), axis=1)
 
     out["no_thrombolysis_reason"] = df.get("no_thrombolysis_reason", empty).map(lambda value: _map_value(value, NO_THROMBOLYSIS_REASON_MAP))
