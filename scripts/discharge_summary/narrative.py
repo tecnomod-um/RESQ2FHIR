@@ -151,7 +151,31 @@ def procedure_summary(resource: Any) -> str:
 
 
 def observation_summary(resource: Any) -> str:
-    label = clinical_label(getattr(resource, "code", None))
+    # FHIR discharge answers contain a medication-class component and a
+    # separate Boolean or unknown result. Do not let the generic component
+    # summary omit the crucial negative/unknown clinical assertion.
+    code = getattr(resource, "code", None)
+    if _has_code(code, "medication-prescribed-at-discharge"):
+        med = next(
+            (
+                clinical_label(getattr(component, "valueCodeableConcept", None))
+                for component in (getattr(resource, "component", None) or ())
+                if _has_code(getattr(component, "code", None), "medication-class")
+            ),
+            "Medication class",
+        )
+        if getattr(resource, "valueBoolean", None) is False:
+            return f"{med} was not prescribed at discharge."
+        if getattr(resource, "dataAbsentReason", None) is not None:
+            return f"Prescription status at discharge for {med} is unknown."
+        return f"Prescription status at discharge for {med} was recorded."
+    if _has_code(code, "any-medication-prescribed-at-discharge"):
+        if getattr(resource, "valueBoolean", None) is False:
+            return "No medication was prescribed at discharge."
+        if getattr(resource, "dataAbsentReason", None) is not None:
+            return "Whether any medication was prescribed at discharge is unknown."
+
+    label = clinical_label(code)
     context_label = observation_context_label(resource)
     prefix = f"{label} {context_label}" if context_label else label
 
