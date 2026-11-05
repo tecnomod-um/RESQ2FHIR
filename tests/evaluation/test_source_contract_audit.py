@@ -54,6 +54,37 @@ class SourceContractAuditTests(unittest.TestCase):
         self.assertEqual(1, report["byRule"]["ivt_elsewhere_reason"]["mismatched"])
         self.assertGreaterEqual(report["mismatchedAssertions"], 1)
 
+    def test_mt_external_planned_and_not_done_are_checked(self):
+        source = pd.DataFrame([
+            {"KKD_TYP_SPEC": "5", "ENDO_VYKON": value}
+            for value in ("1", "2", "3", "9")
+        ])
+        report = self._run(source)
+        self.assertEqual(0, report["mismatchedAssertions"])
+        self.assertEqual(
+            4, report["byRule"]["mt_reporting_hospital_boolean"]["matched"]
+        )
+        self.assertEqual(
+            2, report["byRule"]["mt_external_or_planned_reason"]["matched"]
+        )
+        self.assertEqual(
+            1, report["reviewFlags"]["mt_external_procedure_and_time_not_checked_in_fhir"]
+        )
+
+    def test_flags_explicit_external_and_no_imaging_not_modelled(self):
+        source = pd.DataFrame([
+            {"CT_MR_VYSETRENIE": "2"},
+            {"CT_MR_VYSETRENIE": "4"},
+            {"CT_MR_VYSETRENIE": "5"},
+        ])
+        report = self._run(source)
+        self.assertEqual(
+            2, report["reviewFlags"]["source_external_brain_imaging_not_modelled"]
+        )
+        self.assertEqual(
+            1, report["reviewFlags"]["source_no_brain_imaging_not_explicitly_modelled"]
+        )
+
     def test_unknown_tici_is_not_forced_to_grade_three(self):
         source = pd.DataFrame([{"KKD_TYP_SPEC": "5", "TICI": "090"}])
         report = self._run(source)

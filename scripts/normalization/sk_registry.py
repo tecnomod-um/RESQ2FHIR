@@ -105,6 +105,9 @@ SWALLOWING_TYPE_MAP = {"1": "1", "2": "3", "3": "4", "4": "4", "5": "4", "6": "4
 MTICI_MAP = {"000": "1", "010": "2", "02a": "3", "02b": "4", "030": "6"}
 NO_THROMBOLYSIS_REASON_MAP = {"2": "1", "3": "7"}
 NO_THROMBECTOMY_REASON_MAP = {"2": "1", "3": "8"}
+# Source ENDO_VYKON: 1 = performed here, 2 = performed elsewhere,
+# 3 = transfer for planned MT, 9 = not performed (2024 NCZI form).
+THROMBECTOMY_LOCAL_MAP = {"1": True, "2": False, "3": False, "9": False}
 
 BOOLEAN_COLUMNS = [
     "risk_tia", "wakeup_stroke", "risk_hyperlipidemia", "risk_smoker",
@@ -286,6 +289,11 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     for column in BOOLEAN_COLUMNS:
         if column in df:
             out[column] = df[column].map(_to_bool)
+    # Unlike 1/2/3 Boolean fields, the 2024 MT source uses 9 for not done.
+    if "thrombectomy" in df:
+        out["thrombectomy"] = df["thrombectomy"].map(
+            lambda value: _map_value(value, THROMBECTOMY_LOCAL_MAP)
+        )
 
     out["risk_previous_ischemic_stroke"] = out.apply(lambda row: _disjunction(row, ["risk_previous_ischemic_stroke", "risk_tia"]), axis=1)
     out["risk_previous_stroke"] = out.apply(lambda row: _disjunction(row, ["risk_previous_ischemic_stroke", "risk_previous_hemorrhagic_stroke"]), axis=1)
@@ -343,6 +351,24 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     out.loc[df.get("no_mt_reason_time_window", empty).map(_key) == "1", "no_thrombectomy_reason"] = "2"
     out.loc[df.get("no_mt_reason_mild_deficit", empty).map(_key) == "1", "no_thrombectomy_reason"] = "3"
     out.loc[df.get("no_mt_reason_premorbidity", empty).map(_key) == "1", "no_thrombectomy_reason"] = "5"
+    # Preserve whether endovascular intervention was performed elsewhere (2)
+    # or the patient was transferred for a planned intervention (3).
+    mt_source = df.get("thrombectomy", empty).map(_key)
+    external_mt = mt_source.eq("2")
+    planned_external_mt = mt_source.eq("3")
+    conflicting_mt_reasons = (external_mt | planned_external_mt) & (
+        df.get("no_mt_reason_time_window", empty).map(_key).eq("1")
+        | df.get("no_mt_reason_mild_deficit", empty).map(_key).eq("1")
+        | df.get("no_mt_reason_premorbidity", empty).map(_key).eq("1")
+    )
+    if conflicting_mt_reasons.any():
+        logger.warning(
+            "%d rows report external/planned thrombectomy and a no-treatment "
+            "reason; retaining the explicit source context for the contract",
+            int(conflicting_mt_reasons.sum()),
+        )
+    out.loc[external_mt, "no_thrombectomy_reason"] = "1"  # DONE_ELSEWHERE
+    out.loc[planned_external_mt, "no_thrombectomy_reason"] = "8"  # TRANSFERRED_ELSEWHERE
 
     imaging_type_source = df.get("imaging_type", empty).map(_key)
     ct_angio = df.get("ct_angio", empty).map(_key)
