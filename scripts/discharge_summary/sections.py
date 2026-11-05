@@ -178,6 +178,7 @@ SECTION_DEFINITIONS: dict[DischargeSection, SectionDefinition] = {
         entry_types=frozenset({
             "MedicationRequest",
             "MedicationStatement",
+            "Observation",  # Registry NO/UNKNOWN discharge medication answers
         }),
     ),
 

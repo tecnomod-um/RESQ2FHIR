@@ -60,6 +60,7 @@ def get_before_onset_medications(raw: dict):
         "before_onset_clopidogrel": Medications.CLOPIDOGREL,
         "before_onset_contraception": Medications.CONTRACEPTION,
         "before_onset_dabigatran": Medications.DABIGATRAN,
+        "before_onset_doak": Medications.DOAC,
         "before_onset_dipyridamole": Medications.DIPYRIDAMOLE,
         "before_onset_edoxaban": Medications.EDOXABAN,
         "before_onset_heparin": Medications.HEPARIN,
@@ -76,6 +77,14 @@ def get_before_onset_medications(raw: dict):
 
     for key, med in mapping.items():
         value = raw.get(key)
+        # The 2024 register may omit the anticoagulant field entirely. Do not
+        # invent an additional unknown DOAC statement when no source evidence
+        # exists; other broad anticoagulant unknowns remain unchanged.
+        if key == "before_onset_doak" and pd.isna(value):
+            continue
+        # A single DOAC at onset is already represented by its specific class.
+        if key == "before_onset_any_anticoagulant" and raw.get("before_onset_doak") is True:
+            continue
         if value is True:
             medications_taken.append(med)
         elif value is False:
@@ -98,6 +107,8 @@ def get_on_discharge_medications(raw: dict):
         "discharge_other_antiplatelet": Medications.OTHER_ANTIPLATELET,
         "discharge_heparin": Medications.HEPARIN,
         "discharge_asa": Medications.ASA,
+        "discharge_doak": Medications.DOAC,
+        "discharge_antidepressants": Medications.ANTIDEPRESSANT,
         "discharge_clopidogrel": Medications.CLOPIDOGREL,
         "discharge_contraception": Medications.CONTRACEPTION,
         "discharge_other": Medications.OTHER_MEDICATION,
@@ -119,6 +130,10 @@ def get_on_discharge_medications(raw: dict):
 
     for key, med in mapping.items():
         value = raw.get(key)
+        # Avoid creating a second, generic anticoagulant prescription from
+        # the same source DOAC indication.
+        if key == "discharge_any_anticoagulant" and raw.get("discharge_doak") is True:
+            continue
         if value is True:
             medications_prescribed.append(med)
 

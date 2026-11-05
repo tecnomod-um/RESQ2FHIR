@@ -7,6 +7,11 @@ from typing import Any
 
 import pandas as pd
 
+from scripts.fhir_resources.discharge_medication_status import (
+    DISCHARGE_MEDICATION_2024,
+    STATUS_CODE_SYSTEM,
+)
+
 from scripts.enum_models import (
     AdherenceCodes,
     AdmissionPathway,
@@ -214,6 +219,7 @@ RISK_FACTORS = {
     "risk_hypertension": RiskFactor.Hypertension,
     "risk_diabetes": RiskFactor.Diabetes,
     "risk_hyperlipidemia": RiskFactor.Hyperlipidemia,
+    "risk_smoker": RiskFactor.Smoker,
     "risk_previous_stroke": RiskFactor.PreviousStroke,
     "risk_previous_ischemic_stroke": RiskFactor.PreviousIschemicStroke,
     "risk_previous_hemorrhagic_stroke": RiskFactor.PreviousHemorrhagicStroke,
@@ -232,6 +238,7 @@ PRIOR_MEDS = {
     "before_onset_other_anticoagulant": Medications.OTHER_ANTICOAGULANT,
     "before_onset_statin": Medications.STATIN,
     "before_onset_warfarin": Medications.WARFARIN,
+    "before_onset_doak": Medications.DOAC,
 }
 
 DISCHARGE_MEDS = {
@@ -243,6 +250,8 @@ DISCHARGE_MEDS = {
     "discharge_other": Medications.OTHER_MEDICATION,
     "discharge_statin": Medications.STATIN,
     "discharge_warfarin": Medications.WARFARIN,
+    "discharge_doak": Medications.DOAC,
+    "discharge_antidepressants": Medications.ANTIDEPRESSANT,
 }
 
 STROKE_ETIOLOGY = {
@@ -342,28 +351,85 @@ def _risk_factor(bundle: dict, field: str, value: Any) -> bool:
 
 def _prior_med(bundle: dict, field: str, value: Any) -> bool:
     expected = _as_bool(value)
-    medication_code = _enum_coding(PRIOR_MEDS[field])
+    # The 2024 DOAC field may be the only specific anticoagulant. When
+    # present we avoid generating a duplicate generic MedicationStatement.
+    members = [PRIOR_MEDS[field]]
+    if field == "before_onset_any_anticoagulant" and expected is True:
+        members.append(Medications.DOAC)
     adherence = AdherenceCodes.TAKING if expected is True else AdherenceCodes.NOT_TAKING
     for statement in _profile_resources(
         bundle, "MedicationStatement", "prior-medication-statement-profile"
     ):
         medication = ((statement.get("medication") or {}).get("concept") or {})
-        if not _concept_has(medication, medication_code):
+        if not any(_concept_has(medication, _enum_coding(m)) for m in members):
             continue
         adherence_concept = ((statement.get("adherence") or {}).get("code") or {})
-        return _concept_has(adherence_concept, _enum_coding(adherence))
+        if _concept_has(adherence_concept, _enum_coding(adherence)):
+            return True
     return False
 
 
 def _discharge_med(bundle: dict, field: str, value: Any) -> bool:
     expected = _as_bool(value)
-    medication_code = _enum_coding(DISCHARGE_MEDS[field])
+    members = [DISCHARGE_MEDS[field]]
+    if field == "discharge_any_anticoagulant" and expected is True:
+        members.append(Medications.DOAC)
     found = any(
-        _concept_has(((request.get("medication") or {}).get("concept") or {}), medication_code)
+        _concept_has(
+            ((request.get("medication") or {}).get("concept") or {}),
+            _enum_coding(member),
+        )
         for request in _profile_resources(
             bundle, "MedicationRequest", "discharge-medication-request-profile"
         )
+        for member in members
     )
+
+    # The source-backed NCZI 2024 yes/no fields have three *different*
+    # FHIR representations. An absent order alone is never evidence of NO.
+    if field in DISCHARGE_MEDICATION_2024:
+        med = DISCHARGE_MEDICATION_2024[field]
+        observations = [
+            obs for obs in _resources(bundle, "Observation")
+            if _concept_has(
+                obs.get("code"),
+                (STATUS_CODE_SYSTEM, "medication-prescribed-at-discharge"),
+            )
+            and any(
+                _concept_has(
+                    component.get("valueCodeableConcept"), _enum_coding(med)
+                )
+                for component in (obs.get("component") or [])
+                if _concept_has(
+                    component.get("code"), (STATUS_CODE_SYSTEM, "medication-class")
+                )
+            )
+        ]
+        if expected is True:
+            # TRUE is an actual MedicationRequest and cannot coexist with a
+            # negative or explicitly unknown answer for the same category.
+            return found and not observations
+        if expected is False:
+            return (
+                not found
+                and len(observations) == 1
+                and observations[0].get("valueBoolean") is False
+                and "dataAbsentReason" not in observations[0]
+            )
+        # UNKNOWN: explicit answer with the standard unknown missing-reason
+        # coding, not a guessed false and not a positive medication order.
+        return (
+            not found
+            and len(observations) == 1
+            and "valueBoolean" not in observations[0]
+            and _concept_has(
+                observations[0].get("dataAbsentReason"),
+                ("http://terminology.hl7.org/CodeSystem/data-absent-reason",
+                 "unknown"),
+            )
+        )
+
+    # Generic/derived aggregate flags retain their existing interpretation.
     return found if expected is True else not found
 
 
@@ -545,7 +611,9 @@ def _check(field: str, value: Any, bundle: dict) -> bool | None:
     if field in PRIOR_MEDS:
         return None if _as_bool(value) is None else _prior_med(bundle, field, value)
     if field in DISCHARGE_MEDS:
-        return None if _as_bool(value) is None else _discharge_med(bundle, field, value)
+        return _discharge_med(bundle, field, value) if (
+            _as_bool(value) is not None or field in DISCHARGE_MEDICATION_2024
+        ) else None
     if field in STROKE_ETIOLOGY:
         return _positive_condition_extension(
             bundle, "ischemic-stroke-etiology-ext", STROKE_ETIOLOGY[field], value
