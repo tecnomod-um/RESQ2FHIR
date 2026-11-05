@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from scripts.fhir_resources.discharge_medication_status import (
+from scripts.fhir_resources.observation import (
     DISCHARGE_MEDICATION_2024,
     STATUS_CODE_SYSTEM,
 )
