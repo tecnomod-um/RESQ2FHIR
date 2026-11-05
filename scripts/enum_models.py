@@ -650,6 +650,9 @@ class Medications(ConceptEnum):
     ANY_ANTICOAGULANT = ("Any Anticoagulant", {"code": "anticoagulant", "display": "Any Anticoagulant", "system": "http://qualityregistry.org/CodeSystem/medication-cs"})
     OTHER_MEDICATION = ("Other", {"code": "other", "display": "Other", "system": "http://qualityregistry.org/CodeSystem/medication-cs"})
 
+class MedicationStatus(ConceptEnum):
+    MEDICATION_STATUS = "Medication Status", {"code": "medication-prescribed-at-discharge", "display": "Medication Prescribed at Discharge", "system": "http://qualityregistry.org/CodeSystem/discharge-medication-status-cs"}
+    MEDICATION_CLASS = "Medication Class", {"code": "medication-class", "display": "Medication class queried at Discharge", "system": "http://qualityregistry.org/CodeSystem/discharge-medication-status-cs"}
 
 class InsulinOnHyperglycemiaTiming(ConceptEnum):
     WITHIN_1_HOUR = ("1", {"code": "T1H", "display": "Within 1 Hour", "system": "http://qualityregistry.org/CodeSystem/insulin-hyperglycemia-time-cs"})

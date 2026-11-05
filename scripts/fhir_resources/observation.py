@@ -13,7 +13,7 @@ from fhir.resources.range import Range
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.extension import Extension
 from scripts.enum_models import (
-    AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ManagementAppointment, NotMedicationReason, ObservationMethods, ProcedureNotDoneReason, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
+    AnaliticsCodes, AtrialFibrillationOrFlutter, BodySites, CarotidStenosisLevel, GCSScore, GlasgowComaScale, HemorrhagicTransformationType, INRmode, Laterality, ManagementAppointment, MedicationStatus, NotMedicationReason, ObservationMethods, ProcedureNotDoneReason, TiaClinicalSymptoms, ThreeMonthContactMode, VitalSigns, MRsScore,
     AssessmentContext, FunctionalScore, MTiciScore, SpecificFinding, UnitofMeasurement, TimingMetricCodes, TiaSymptomDuration, Medications
 )
 from fhir.resources.meta import Meta 
@@ -473,7 +473,7 @@ def build_observation_Af_or_F(patient_ref: str, encounter_ref: str, atrial_fibri
 # Grouped with the other Observation builders rather than in a separate module.
 STATUS_CODE_SYSTEM = (
     "http://qualityregistry.org/CodeSystem/"
-    "discharge-medication-prescription-status-cs"
+    "discharge-medication-status-cs"
 )
 
 # The individual yes/no entries present in the 2024 Slovak source.
@@ -518,17 +518,9 @@ def build_discharge_medication_answer(
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        code=_discharge_medication_status_concept(
-            STATUS_CODE_SYSTEM,
-            "medication-prescribed-at-discharge",
-            "Medication prescribed at discharge (registry answer)",
-        ),
+        code=CodeableConcept(coding=[MedicationStatus.MEDICATION_STATUS.to_coding()]),
         component=[ObservationComponent(
-            code=_discharge_medication_status_concept(
-                STATUS_CODE_SYSTEM,
-                "medication-class",
-                "Medication class queried at discharge",
-            ),
+            code=CodeableConcept(coding=[MedicationStatus.MEDICATION_CLASS.to_coding()]),
             valueCodeableConcept=CodeableConcept(coding=[medication.to_coding()]),
         )],
     )
@@ -584,11 +576,7 @@ def build_any_discharge_medication_answer(
         status="final",
         subject=Reference(reference=patient_ref),
         encounter=Reference(reference=encounter_ref),
-        code=_discharge_medication_status_concept(
-            STATUS_CODE_SYSTEM,
-            "any-medication-prescribed-at-discharge",
-            "Any medication prescribed at discharge (registry answer)",
-        ),
+        code=CodeableConcept(coding=[MedicationStatus.MEDICATION_STATUS.to_coding()]),
     )
     if answer is None:
         obs.dataAbsentReason = _discharge_medication_status_concept(
