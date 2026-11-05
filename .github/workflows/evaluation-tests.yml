@@ -10,6 +10,13 @@ on:
       - 'scripts/evaluation/**'
       - 'tests/evaluation/**'
       - 'scripts/normalization/**'
+      - 'scripts/helpers.py'
+      - 'scripts/enum_models.py'
+      - 'scripts/data_modeling.py'
+      - 'scripts/fhir_resources/condition.py'
+      - 'scripts/fhir_resources/medicationRequest.py'
+      - 'scripts/fhir_resources/medicationStatement.py'
+      - 'scripts/fhir_resources/observation.py'
       - 'tests/fhir_resources/test_slovak_regressions.py'
       - '.github/workflows/evaluation-tests.yml'
 

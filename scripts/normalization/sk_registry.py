@@ -86,7 +86,7 @@ COLUMN_MAPPING = {
     "UKON_DOAK": "discharge_doak",
     "UKON_STATIN": "discharge_statin",
     "UKON_NOOTROPIKA": "discharge_other",
-    "UKON_ANTIDEPRESIVA": "discharge_other2",
+    "UKON_ANTIDEPRESIVA": "discharge_antidepressants",
 }
 
 SEX_MAP = {"1": "1", "2": "2", "9": "3"}
@@ -105,9 +105,12 @@ SWALLOWING_TYPE_MAP = {"1": "1", "2": "3", "3": "4", "4": "4", "5": "4", "6": "4
 MTICI_MAP = {"000": "1", "010": "2", "02a": "3", "02b": "4", "030": "6"}
 NO_THROMBOLYSIS_REASON_MAP = {"2": "1", "3": "7"}
 NO_THROMBECTOMY_REASON_MAP = {"2": "1", "3": "8"}
+# Source ENDO_VYKON: 1 = performed here, 2 = performed elsewhere,
+# 3 = transfer for planned MT, 9 = not performed (2024 NCZI form).
+THROMBECTOMY_LOCAL_MAP = {"1": True, "2": False, "3": False, "9": False}
 
 BOOLEAN_COLUMNS = [
-    "risk_tia", "wakeup_stroke", "risk_hyperlipidemia",
+    "risk_tia", "wakeup_stroke", "risk_hyperlipidemia", "risk_smoker",
     "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction",
@@ -117,7 +120,7 @@ BOOLEAN_COLUMNS = [
     "before_onset_contraception", "thrombolysis", "thrombectomy",
     "carotid_arteries_imaging", "discharge_asa", "discharge_clopidogrel",
     "discharge_warfarin", "discharge_doak", "discharge_heparin",
-    "discharge_statin", "discharge_other", "discharge_other2",
+    "discharge_statin", "discharge_other", "discharge_antidepressants",
     "mt_complications_perforation",
 ]
 
@@ -134,10 +137,10 @@ OUTPUT_COLUMNS = [
     "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction", "risk_diabetes",
-    "risk_atrial_fibrillation", "risk_hypertension", "risk_smoker_last_10_years",
+    "risk_atrial_fibrillation", "risk_hypertension", "risk_smoker", "risk_smoker_last_10_years",
     "before_onset_antidiabetics", "before_onset_antihypertensives",
     "before_onset_asa", "before_onset_clopidogrel", "before_onset_statin",
-    "before_onset_contraception", "before_onset_warfarin",
+    "before_onset_contraception", "before_onset_warfarin", "before_onset_doak",
     "before_onset_other_anticoagulant", "before_onset_any_antiplatelet",
     "before_onset_any_anticoagulant", "imaging_done", "imaging_type",
     "imaging_timestamp", "stroke_type", "thrombolysis", "bolus_timestamp",
@@ -154,7 +157,7 @@ OUTPUT_COLUMNS = [
     "discharge_facility_department", "discharge_date", "discharge_mrs",
     "three_m_mrs", "discharge_nihss_score", "discharge_asa",
     "discharge_clopidogrel", "discharge_warfarin", "discharge_heparin",
-    "discharge_statin", "discharge_other", "discharge_any_antiplatelet",
+    "discharge_doak", "discharge_antidepressants", "discharge_statin", "discharge_other", "discharge_any_antiplatelet",
     "discharge_any_anticoagulant", "post_acute_care",
 ]
 
@@ -190,6 +193,10 @@ def _map_value(value: Any, mapping: dict[str, Any]) -> Any:
 
 
 def _to_bool(value: Any) -> bool | None:
+    # Accept existing Python/pandas Boolean contract values without converting
+    # them to the strings "True"/"False", which are not 2024 NCZI code keys.
+    if isinstance(value, bool):
+        return value
     return _map_value(value, BOOL_MAP)
 
 
@@ -282,18 +289,41 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     for column in BOOLEAN_COLUMNS:
         if column in df:
             out[column] = df[column].map(_to_bool)
+    # Unlike 1/2/3 Boolean fields, the 2024 MT source uses 9 for not done.
+    if "thrombectomy" in df:
+        out["thrombectomy"] = df["thrombectomy"].map(
+            lambda value: _map_value(value, THROMBECTOMY_LOCAL_MAP)
+        )
 
     out["risk_previous_ischemic_stroke"] = out.apply(lambda row: _disjunction(row, ["risk_previous_ischemic_stroke", "risk_tia"]), axis=1)
     out["risk_previous_stroke"] = out.apply(lambda row: _disjunction(row, ["risk_previous_ischemic_stroke", "risk_previous_hemorrhagic_stroke"]), axis=1)
-    out["discharge_other"] = out.apply(lambda row: _disjunction(row, ["discharge_other", "discharge_other2"]), axis=1)
     out["before_onset_any_antiplatelet"] = out.apply(lambda row: _disjunction(row, ["before_onset_asa", "before_onset_clopidogrel"]), axis=1)
     out["discharge_any_antiplatelet"] = out.apply(lambda row: _disjunction(row, ["discharge_asa", "discharge_clopidogrel"]), axis=1)
     out["discharge_any_anticoagulant"] = out.apply(lambda row: _disjunction(row, ["discharge_warfarin", "discharge_heparin", "discharge_doak"]), axis=1)
 
     anticoagulant_source = df.get("before_onset_anticoagulants", empty)
-    out["before_onset_warfarin"] = anticoagulant_source.map(lambda value: _key(value) == "01" if not _is_missing(value) else None)
-    out["before_onset_other_anticoagulant"] = anticoagulant_source.map(lambda value: _key(value) == "98" if not _is_missing(value) else None)
-    out["before_onset_doak"] = anticoagulant_source.map(lambda value: _key(value) == "06" if not _is_missing(value) else None)
+    # The 2024 Slovak source export has appeared with both 01/06 and 1/6
+    # (including numeric/float representations). Canonicalize *only* this
+    # single-select numeric code; never coerce it to a boolean or apply
+    # zero-stripping to unrelated categorical sources such as TICI.
+    def anticoagulant_code(value: Any) -> str | None:
+        code = _key(value)
+        if code is None:
+            return None
+        if re.fullmatch(r"\d+", code):
+            return str(int(code))
+        return code
+
+    anticoagulant_codes = anticoagulant_source.map(anticoagulant_code)
+    out["before_onset_warfarin"] = anticoagulant_codes.map(
+        lambda code: code == "1" if code is not None else None
+    )
+    out["before_onset_other_anticoagulant"] = anticoagulant_codes.map(
+        lambda code: code == "98" if code is not None else None
+    )
+    out["before_onset_doak"] = anticoagulant_codes.map(
+        lambda code: code == "6" if code is not None else None
+    )
     out["before_onset_any_anticoagulant"] = out.apply(lambda row: _disjunction(row, ["before_onset_warfarin", "before_onset_other_anticoagulant", "before_onset_doak"]), axis=1)
 
     out["no_thrombolysis_reason"] = df.get("no_thrombolysis_reason", empty).map(lambda value: _map_value(value, NO_THROMBOLYSIS_REASON_MAP))
@@ -321,6 +351,24 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     out.loc[df.get("no_mt_reason_time_window", empty).map(_key) == "1", "no_thrombectomy_reason"] = "2"
     out.loc[df.get("no_mt_reason_mild_deficit", empty).map(_key) == "1", "no_thrombectomy_reason"] = "3"
     out.loc[df.get("no_mt_reason_premorbidity", empty).map(_key) == "1", "no_thrombectomy_reason"] = "5"
+    # Preserve whether endovascular intervention was performed elsewhere (2)
+    # or the patient was transferred for a planned intervention (3).
+    mt_source = df.get("thrombectomy", empty).map(_key)
+    external_mt = mt_source.eq("2")
+    planned_external_mt = mt_source.eq("3")
+    conflicting_mt_reasons = (external_mt | planned_external_mt) & (
+        df.get("no_mt_reason_time_window", empty).map(_key).eq("1")
+        | df.get("no_mt_reason_mild_deficit", empty).map(_key).eq("1")
+        | df.get("no_mt_reason_premorbidity", empty).map(_key).eq("1")
+    )
+    if conflicting_mt_reasons.any():
+        logger.warning(
+            "%d rows report external/planned thrombectomy and a no-treatment "
+            "reason; retaining the explicit source context for the contract",
+            int(conflicting_mt_reasons.sum()),
+        )
+    out.loc[external_mt, "no_thrombectomy_reason"] = "1"  # DONE_ELSEWHERE
+    out.loc[planned_external_mt, "no_thrombectomy_reason"] = "8"  # TRANSFERRED_ELSEWHERE
 
     imaging_type_source = df.get("imaging_type", empty).map(_key)
     ct_angio = df.get("ct_angio", empty).map(_key)

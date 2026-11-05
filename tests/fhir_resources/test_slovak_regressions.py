@@ -89,6 +89,30 @@ class SlovakRegressionTests(unittest.TestCase):
             procedure.statusReason.coding[0].code,
         )
 
+    def test_2024_thrombectomy_here_elsewhere_planned_and_not_done(self):
+        # 2024 ZR_NEUR_CMP form: 1 local; 2 elsewhere; 3 planned transfer; 9 no MT.
+        source = pd.DataFrame([
+            {"KKD_TYP_SPEC": "5", "ENDO_VYKON": source_code}
+            for source_code in ("1", "2", "3", "9")
+        ])
+        normalized, _ = normalize_sk_registry_dataframe(source)
+        self.assertEqual(
+            [True, False, False, False], normalized["thrombectomy"].tolist()
+        )
+        self.assertEqual("1", normalized.loc[1, "no_thrombectomy_reason"])
+        self.assertEqual("8", normalized.loc[2, "no_thrombectomy_reason"])
+        self.assertTrue(pd.isna(normalized.loc[0, "no_thrombectomy_reason"]))
+        self.assertTrue(pd.isna(normalized.loc[3, "no_thrombectomy_reason"]))
+
+    def test_planned_mt_transfer_overrides_conflicting_no_mt_reason(self):
+        source = pd.DataFrame([{
+            "KKD_TYP_SPEC": "5", "ENDO_VYKON": "3", "NMT_MIMO_CAS": "1",
+        }])
+        with self.assertLogs("scripts.normalization.sk_registry", level="WARNING"):
+            normalized, _ = normalize_sk_registry_dataframe(source)
+        self.assertEqual(False, normalized.loc[0, "thrombectomy"])
+        self.assertEqual("8", normalized.loc[0, "no_thrombectomy_reason"])
+
     def test_missing_ivt_department_does_not_create_location_reference(self):
         context = Mock()
 

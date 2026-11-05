@@ -18,6 +18,7 @@ import pandas as pd
 
 TICI_TO_RESQ = {"000": "1", "010": "2", "02a": "3", "02b": "4", "030": "6"}
 THROMBOLYSIS_TO_BOOL = {"1": True, "2": False, "3": False}
+THROMBECTOMY_TO_BOOL = {"1": True, "2": False, "3": False, "9": False}
 
 
 def _text(value: object) -> str:
@@ -98,6 +99,35 @@ def audit_source_to_contract(
                 else:
                     flags["tici_unmapped_source_code"] += 1
 
+        if "CT_MR_VYSETRENIE" in source.columns:
+            imaging_source = _text(s["CT_MR_VYSETRENIE"])
+            if imaging_source in {"2", "4"}:
+                # 2024: CT/MR at another hospital. The existing adapter
+                # currently only derives imaging_type for codes 1 and 3.
+                flags["source_external_brain_imaging_not_modelled"] += 1
+            elif imaging_source == "5":
+                # 2024: explicit no CT/MR, but normalized imaging_done is null.
+                flags["source_no_brain_imaging_not_explicitly_modelled"] += 1
+
+        if "ENDO_VYKON" in source.columns:
+            mt_source = _text(s["ENDO_VYKON"])
+            if mt_source in THROMBECTOMY_TO_BOOL:
+                actual = _text(n.get("thrombectomy")).lower()
+                expected = str(THROMBECTOMY_TO_BOOL[mt_source]).lower()
+                record("mt_reporting_hospital_boolean", actual == expected)
+                if mt_source in {"2", "3"}:
+                    expected_reason = "1" if mt_source == "2" else "8"
+                    record(
+                        "mt_external_or_planned_reason",
+                        _text(n.get("no_thrombectomy_reason")) == expected_reason,
+                    )
+                if mt_source == "2":
+                    flags["mt_external_procedure_and_time_not_checked_in_fhir"] += 1
+                if mt_source == "3":
+                    flags["mt_transfer_planned_not_equivalent_to_completed"] += 1
+            elif mt_source:
+                flags["mt_unmapped_source_code"] += 1
+
         if "NL_TROMBOLYZA" in source.columns:
             raw = _text(s["NL_TROMBOLYZA"])
             if raw in THROMBOLYSIS_TO_BOOL:
@@ -148,7 +178,10 @@ def audit_source_to_contract(
         "notYetClinicallyAdjudicated": [
             "STAV_M_RANKIN_2: prestroke vs admission mRS timepoint",
             "DATUM_ENDO_V: arterial puncture vs procedure start",
-            "TICI: TICI and mTICI grade-definition equivalence",
+            "2024 TICI 02a (<2/3) and 02b (slow distal filling) differ "
+            "from target mTICI 2a (<1/2) and 2b (>1/2) definitions",
+            "CT_MR_VYSETRENIE=2/4/5 are not fully modelled in target contract",
+            "ENDO_VYKON=2 external MT time/grade are not checked downstream",
             "NL_TROMBOLYZA=2: source external treatment time is not checked "
             "by the normalized-contract-to-FHIR semantic evaluator",
         ],
