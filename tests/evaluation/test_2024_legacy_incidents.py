@@ -24,7 +24,7 @@ from fhir.resources.organization import Organization
 from scripts.fhir_resources.medicationRequest import build_on_discharge_medicationRequest_profile
 from scripts.fhir_resources.medicationStatement import build_before_onset_medicationStatement_profile
 from scripts.fhir_resources.observation import build_observation_vital_signs
-from scripts.fhir_resources.discharge_medication_status import (
+from scripts.fhir_resources.observation import (
     STATUS_CODE_SYSTEM,
     build_any_discharge_medication_answer,
     build_discharge_medication_answers_2024,
@@ -50,6 +50,16 @@ def med_code(resource):
 
 
 class HistoricalIncidents2024Tests(unittest.TestCase):
+    def test_discharge_medication_builders_live_in_observation_module(self):
+        self.assertEqual(
+            "scripts.fhir_resources.observation",
+            build_discharge_medication_answers_2024.__module__,
+        )
+        self.assertEqual(
+            "scripts.fhir_resources.observation",
+            build_any_discharge_medication_answer.__module__,
+        )
+
     def test_anticoagulant_code_01_and_1_are_equivalent_in_2024(self):
         for source in ("01", "1", 1, 1.0):
             with self.subTest(source=source):
