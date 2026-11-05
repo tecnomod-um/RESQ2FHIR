@@ -627,7 +627,7 @@ class Medications(ConceptEnum):
     CLOPIDOGREL = ("Clopidogrel", {"code": "386952008", "display": "Clopidogrel (substance)", "system": "http://snomed.info/sct"})    
     CONTRACEPTION = ("Contraception", {"code": "312263009", "display": "Sex hormone (substance)", "system": "http://snomed.info/sct"})
     DABIGATRAN = ("Dabigatran", {"code": "698871007", "display": "Dabigatran (substance)", "system": "http://snomed.info/sct"})
-    DOAC = ("DOAC", {"code": "doac", "display": "Direct oral anticoagulant (registry class)", "system": "http://qualityregistry.org/CodeSystem/medication-cs"})
+    DOAC = ("DOAC", {"code": "doac", "display": "Direct oral anticoagulant", "system": "http://qualityregistry.org/CodeSystem/medication-cs"})
     DIPYRIDAMOLE = ("Dipyridamole", {"code": "387371005", "display": "Dipyridamole (substance)", "system": "http://snomed.info/sct"})
     EDOXABAN = ("Edoxaban", {"code": "712778008", "display": "Edoxaban (substance)", "system": "http://snomed.info/sct"})
     HEPARIN = ("Heparin", {"code": "372877000", "display": "Heparin (substance)", "system": "http://snomed.info/sct"})
