@@ -318,7 +318,7 @@ class HistoricalIncidents2024Tests(unittest.TestCase):
         )
         self.assertIs(obs.valueBoolean, False)
         self.assertEqual(
-            "any-medication-prescribed-at-discharge",
+            "medication-prescribed-at-discharge",
             obs.code.coding[0].code,
         )
 
