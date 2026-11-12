@@ -159,6 +159,34 @@ class SlovakMappingMatrix(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertTrue(pd.isna(self.row(**{source: "BAD_CODE"})[target]))
 
+    def test_every_configured_source_key_is_exercised(self):
+        """Smoke test all 71 source keys; does not imply valid clinical mapping."""
+        dates = {"PACDATVYK": "05/21/2026"}
+        timestamps = {"DATUM_LEKAR", "DATUM_CT", "NL_DATUM_TROMBOLYZA",
+                      "DATUM_ENDO_V", "DATUM_REKANALIZACIE", "UKON_DATUM"}
+        for source in sk.COLUMN_MAPPING:
+            value = dates.get(source, "05/21/2026 12:30" if source in timestamps else "1")
+            if source == "TICI":
+                value = "02a"
+            if source in {"ICO", "NAZOV", "NÁZOV NEMOCNICE SKRÁTENÝ"}:
+                value = "synthetic-provider"
+            with self.subTest(source=source):
+                self.assertEqual(81, len(self.row(**{source: value})))
+
+    def test_2024_imaging_cross_product_is_executable(self):
+        """5 modality statuses x 3 CTA states x 3 perfusion states = 45 scenarios."""
+        for modality in ("1", "2", "3", "4", "5"):
+            for angiography in ("1", "2", None):
+                for perfusion in ("1", "2", None):
+                    with self.subTest(modality=modality, CTA=angiography, CTP=perfusion):
+                        result = self.row(CT_MR_VYSETRENIE=modality,
+                                          CT_ANGIO=angiography,
+                                          CT_PERFUZNE=perfusion)
+                        if modality in {"1", "3"}:
+                            self.assertEqual("1", result["imaging_done"])
+                        # For 2/4/5, lossy current behavior is tracked as xfail
+                        # in dedicated tests, not silently endorsed here.
+
     @unittest.expectedFailure
     def test_known_gap_ct_cta_and_perfusion_precedence(self):
         self.assertEqual("3", self.row(CT_MR_VYSETRENIE="1",
