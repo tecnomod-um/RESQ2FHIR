@@ -111,7 +111,7 @@ THROMBECTOMY_LOCAL_MAP = {"1": True, "2": False, "3": False, "9": False}
 
 BOOLEAN_COLUMNS = [
     "risk_tia", "wakeup_stroke", "risk_hyperlipidemia", "risk_smoker",
-    "risk_previous_ischemic_stroke", "risk_previous_stroke",
+    "risk_tia", "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction",
     "risk_diabetes", "before_onset_antidiabetics", "risk_atrial_fibrillation",
@@ -217,9 +217,13 @@ def _format_datetime(value: Any) -> str | None:
 def _combine_date_time(date_value: Any, time_value: Any) -> str | None:
     if _is_missing(date_value):
         return None
+    # Preserve the precision actually known by NCZI. FHIR R5 dateTime allows
+    # YYYY-MM-DD; never synthesize midnight for a missing source clock time.
+    if _is_missing(time_value):
+        parsed = pd.to_datetime(date_value, errors="coerce")
+        return None if pd.isna(parsed) else parsed.strftime("%Y-%m-%d")
     date_text = str(date_value).split()[0]
-    time_text = "00:00" if _is_missing(time_value) else str(time_value).strip()
-    return _format_datetime(f"{date_text} {time_text}")
+    return _format_datetime(f"{date_text} {str(time_value).strip()}")
 
 
 def _minute_difference(end_value: Any, start_value: Any) -> int | None:
@@ -240,8 +244,14 @@ def _last_mrs_digit(value: Any) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _disjunction(row: pd.Series, columns: list[str]) -> bool:
-    return any(row.get(column) is True for column in columns)
+def _disjunction(row: pd.Series, columns: list[str]) -> bool | None:
+    """Three-valued OR: true wins, all false -> false, otherwise unknown."""
+    values = [row.get(column) for column in columns]
+    if any(not _is_missing(value) and value == True for value in values):
+        return True
+    if all(not _is_missing(value) and value == False for value in values):
+        return False
+    return None
 
 
 def _rename_source_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, str]]:
@@ -295,8 +305,14 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
             lambda value: _map_value(value, THROMBECTOMY_LOCAL_MAP)
         )
 
-    out["risk_previous_ischemic_stroke"] = out.apply(lambda row: _disjunction(row, ["risk_previous_ischemic_stroke", "risk_tia"]), axis=1)
-    out["risk_previous_stroke"] = out.apply(lambda row: _disjunction(row, ["risk_previous_ischemic_stroke", "risk_previous_hemorrhagic_stroke"]), axis=1)
+    # Preserve OA_TIA separately from OA_ISCHEMICKA_CMP: a TIA is not
+    # semantically identical to a previous ischemic stroke. Both original
+    # indicators remain accessible in the normalized output.
+    out["risk_previous_stroke"] = out.apply(
+        lambda row: _disjunction(
+            row, ["risk_previous_ischemic_stroke", "risk_previous_hemorrhagic_stroke"]
+        ), axis=1
+    )
     out["before_onset_any_antiplatelet"] = out.apply(lambda row: _disjunction(row, ["before_onset_asa", "before_onset_clopidogrel"]), axis=1)
     out["discharge_any_antiplatelet"] = out.apply(lambda row: _disjunction(row, ["discharge_asa", "discharge_clopidogrel"]), axis=1)
     out["discharge_any_anticoagulant"] = out.apply(lambda row: _disjunction(row, ["discharge_warfarin", "discharge_heparin", "discharge_doak"]), axis=1)
@@ -324,7 +340,11 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     out["before_onset_doak"] = anticoagulant_codes.map(
         lambda code: code == "6" if code is not None else None
     )
-    out["before_onset_any_anticoagulant"] = out.apply(lambda row: _disjunction(row, ["before_onset_warfarin", "before_onset_other_anticoagulant", "before_onset_doak"]), axis=1)
+    out["before_onset_any_anticoagulant"] = out.apply(
+        lambda row: _disjunction(
+            row, ["before_onset_warfarin", "before_onset_other_anticoagulant", "before_onset_doak"]
+        ), axis=1
+    )
 
     out["no_thrombolysis_reason"] = df.get("no_thrombolysis_reason", empty).map(lambda value: _map_value(value, NO_THROMBOLYSIS_REASON_MAP))
     out.loc[df.get("no_ivt_reason_time_window", empty).map(_key) == "1", "no_thrombolysis_reason"] = "2"
@@ -373,14 +393,20 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
     imaging_type_source = df.get("imaging_type", empty).map(_key)
     ct_angio = df.get("ct_angio", empty).map(_key)
     ct_perfusion = df.get("ct_perfusion", empty).map(_key)
+    # 2024 NCZI: 1=CT here, 2=CT elsewhere, 3=MR here,
+    # 4=MR elsewhere, 5=no CT/MR.
+    # Perfusion takes precedence over angiography when both flags are true,
+    # preserving the more specific composite target category.
     out["imaging_type"] = None
-    out.loc[(ct_perfusion == "1") & (imaging_type_source == "1"), "imaging_type"] = "3"
-    out.loc[(ct_perfusion == "1") & (imaging_type_source == "3"), "imaging_type"] = "6"
+    out.loc[imaging_type_source.isin({"1", "2"}), "imaging_type"] = "1"
+    out.loc[imaging_type_source.isin({"3", "4"}), "imaging_type"] = "4"
     out.loc[(ct_angio == "1") & (imaging_type_source == "1"), "imaging_type"] = "2"
     out.loc[(ct_angio == "1") & (imaging_type_source == "3"), "imaging_type"] = "5"
-    out.loc[(imaging_type_source == "1") & out["imaging_type"].isna(), "imaging_type"] = "1"
-    out.loc[(imaging_type_source == "3") & out["imaging_type"].isna(), "imaging_type"] = "4"
-    out["imaging_done"] = out["imaging_type"].map(lambda value: "1" if not _is_missing(value) else None)
+    out.loc[(ct_perfusion == "1") & (imaging_type_source == "1"), "imaging_type"] = "3"
+    out.loc[(ct_perfusion == "1") & (imaging_type_source == "3"), "imaging_type"] = "6"
+    out["imaging_done"] = imaging_type_source.map({
+        "1": "1", "2": "3", "3": "1", "4": "3", "5": "2",
+    })
 
     bleeding_source = df.get("bleeding_reasons", empty).map(_key)
     out["bleeding_reason_aneurysm"] = bleeding_source.map(lambda value: True if value == "2" else (False if value else None))
