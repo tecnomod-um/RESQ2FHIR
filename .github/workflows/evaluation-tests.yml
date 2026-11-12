@@ -23,6 +23,7 @@ on:
       - 'tests/fhir_resources/test_slovak_regressions.py'
       - 'tests/fhir_resources/test_slovak_observation_context.py'
       - 'tests/fhir_resources/test_slovak_imaging_and_time.py'
+      - 'tests/fhir_resources/test_slovak_pipeline_smoke.py'
       - 'docs/SLOVAK_MAPPING_TEST_MATRIX.md'
       - '.github/workflows/evaluation-tests.yml'
 
@@ -51,4 +52,4 @@ jobs:
       - name: Run evaluation unit tests
         run: |
           python -m unittest discover -s tests/evaluation -p 'test_*.py' -v
-          python -m unittest tests.fhir_resources.test_slovak_regressions tests.fhir_resources.test_slovak_observation_context tests.fhir_resources.test_slovak_imaging_and_time -v
+          python -m unittest tests.fhir_resources.test_slovak_regressions tests.fhir_resources.test_slovak_observation_context tests.fhir_resources.test_slovak_imaging_and_time tests.fhir_resources.test_slovak_pipeline_smoke -v
