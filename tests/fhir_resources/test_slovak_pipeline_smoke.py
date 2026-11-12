@@ -4,6 +4,8 @@ Checks the actual converter, not only the isolated resource builder. These are
 not profile validation or clinical-equivalence assertions.
 """
 import unittest
+import json
+from datetime import date, datetime
 
 import pandas as pd
 
@@ -30,6 +32,13 @@ class SlovakMappingPipelineSmokeTests(unittest.TestCase):
         bundles = transform_row_to_bundles(row, 1, bundle_mode="transaction")
         self.assertIsNotNone(bundles, "Synthetic source row failed FHIR conversion")
         serialized = bundle_to_json_dict(bundles["transaction"])
+        # transform.process_csv writes JSON-safe primitives via its final
+        # make_json_safe step; model_dump can still contain Python date objects.
+        serialized = json.loads(json.dumps(
+            serialized,
+            default=lambda value: value.isoformat()
+            if isinstance(value, (date, datetime)) else str(value),
+        ))
         return row, serialized
 
     def test_no_imaging_goes_through_actual_converter(self):
