@@ -88,6 +88,30 @@ class SourceContractAuditTests(unittest.TestCase):
             1, report["byRule"]["no_imaging_does_not_invent_modality"]["matched"]
         )
 
+    def test_prior_tia_and_ischemic_stroke_are_audited_as_one_indicator(self):
+        source = pd.DataFrame([
+            {"OA_TIA": "1", "OA_ISCHEMICKA_CMP": "2"},
+            {"OA_TIA": "2", "OA_ISCHEMICKA_CMP": "1"},
+            {"OA_TIA": "1", "OA_ISCHEMICKA_CMP": "1"},
+            {"OA_TIA": "2", "OA_ISCHEMICKA_CMP": "2"},
+            {"OA_TIA": "", "OA_ISCHEMICKA_CMP": "2"},
+            {"OA_TIA": "", "OA_ISCHEMICKA_CMP": ""},
+        ])
+        report = self._run(source)
+        self.assertEqual(6, report["byRule"][
+            "tia_or_ischemic_stroke_combined_resq_indicator"
+        ]["matched"])
+        self.assertEqual(0, report["mismatchedAssertions"])
+
+    def test_prior_tia_aggregation_corruption_is_detected(self):
+        source = pd.DataFrame([{"OA_TIA": "1", "OA_ISCHEMICKA_CMP": "2"}])
+        def corrupt(normalized):
+            normalized.loc[0, "risk_previous_ischemic_stroke"] = False
+        report = self._run(source, mutate=corrupt)
+        self.assertEqual(1, report["byRule"][
+            "tia_or_ischemic_stroke_combined_resq_indicator"
+        ]["mismatched"])
+
     def test_unknown_tici_is_not_forced_to_grade_three(self):
         source = pd.DataFrame([{"KKD_TYP_SPEC": "5", "TICI": "090"}])
         report = self._run(source)
