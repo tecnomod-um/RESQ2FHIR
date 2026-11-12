@@ -6,6 +6,7 @@
 
 The 2024 NCZI source adapter (`scripts/normalization/sk_registry.py`) and the generic labelled-CSV adapter (`scripts/normalization/slovak.py`) are **alternative normalization entry points**, not evidence of two sequential normalization stages.
 
+- All **71 configured source columns** exercised individually and **45 syntactic combinations** (5 source imaging statuses × 3 CTA states × 3 perfusion states); these are execution/smoke tests, not proof of correct source semantics.
 - Every code in **13 explicit original-source mapping tables**: **48 code-to-target entries**.
 - Every code `1`, `2`, `3` and missing for **24 directly mapped Boolean source columns**: **96 individual source-state trials**. This confirms *implementation*; the semantic definition of `3` must still be independently checked per NCZI field.
 - Three IVT administration states and four local/external/planned/none mechanical thrombectomy states, including corresponding RES-Q reason codes.
