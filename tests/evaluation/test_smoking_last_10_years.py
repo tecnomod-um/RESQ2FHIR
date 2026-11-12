@@ -7,14 +7,25 @@ from scripts.local_risk_factors import SMOKING_LAST_10_YEARS
 
 
 class SmokingLast10YearsTests(unittest.TestCase):
+    @staticmethod
+    def _has_smoking_concept(concepts):
+        # Helpers currently return RiskFactor enum members, whereas the
+        # historical fixture is a LocalRiskFactorConcept dataclass. Compare
+        # code-system identities, not unrelated Python object types.
+        return any(
+            concept.system == SMOKING_LAST_10_YEARS.system
+            and concept.code == SMOKING_LAST_10_YEARS.code
+            for concept in concepts
+        )
+
     def test_helper_maps_true_to_active_and_false_to_inactive(self):
         active, inactive, _, _ = get_risk_factors({"risk_smoker_last_10_years": True})
-        self.assertIn(SMOKING_LAST_10_YEARS, active)
-        self.assertNotIn(SMOKING_LAST_10_YEARS, inactive)
+        self.assertTrue(self._has_smoking_concept(active))
+        self.assertFalse(self._has_smoking_concept(inactive))
 
         active, inactive, _, _ = get_risk_factors({"risk_smoker_last_10_years": False})
-        self.assertNotIn(SMOKING_LAST_10_YEARS, active)
-        self.assertIn(SMOKING_LAST_10_YEARS, inactive)
+        self.assertFalse(self._has_smoking_concept(active))
+        self.assertTrue(self._has_smoking_concept(inactive))
 
     def test_existing_risk_factor_builder_serializes_local_code(self):
         conditions = build_risk_factor_condition_profile(
