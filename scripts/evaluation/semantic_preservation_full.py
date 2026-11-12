@@ -263,11 +263,14 @@ def _thrombectomy_perforation(bundle: dict, value: Any) -> bool | None:
 
 def _onset_timestamp(bundle: dict, value: Any) -> bool:
     condition = base._stroke_condition(bundle)
-    return bool(
-        condition
-        and base._as_datetime(condition.get("onsetDateTime"))
-        == base._as_datetime(value)
-    )
+    if not condition:
+        return False
+    actual = condition.get("onsetDateTime")
+    # FHIR R5 dateTime supports partial dates. A synthetic midnight is NOT
+    # semantically interchangeable with an NCZI date whose time is unknown.
+    if isinstance(value, str) and len(value) == 10 and value[4:5] == "-" and value[7:8] == "-":
+        return actual == value
+    return base._as_datetime(actual) == base._as_datetime(value)
 
 
 def _check(
