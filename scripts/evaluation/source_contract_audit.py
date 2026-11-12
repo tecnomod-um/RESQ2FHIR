@@ -67,6 +67,25 @@ def audit_source_to_contract(
         s = source.iloc[i]
         n = normalized.iloc[i]
 
+        if {"OA_TIA", "OA_ISCHEMICKA_CMP"} <= set(source.columns):
+            # Registry-level intentionally combined event history. Only
+            # unambiguous 1=yes, 2=no and blank cases are compared; NCZI
+            # code 3 meanings need independent source-codebook review.
+            codes = [_text(s[field]) for field in ("OA_TIA", "OA_ISCHEMICKA_CMP")]
+            if all(code in {"", "1", "2"} for code in codes):
+                if "1" in codes:
+                    expected = "true"
+                elif all(code == "2" for code in codes):
+                    expected = "false"
+                else:
+                    expected = ""
+                record(
+                    "tia_or_ischemic_stroke_combined_resq_indicator",
+                    _text(n.get("risk_previous_ischemic_stroke")).lower() == expected,
+                )
+            else:
+                flags["tia_stroke_source_codes_require_review"] += 1
+
         if "STAV_M_RANKIN_2" in source.columns:
             raw = _text(s["STAV_M_RANKIN_2"])
             if raw:
