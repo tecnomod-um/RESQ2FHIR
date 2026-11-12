@@ -126,7 +126,13 @@ def build_stroke_diagnosis_condition_profile(patient_ref: str, encounter_ref: st
             condition.onsetDateTime = parse_datetime(sleep_timestamp)
     else:
         if onset_timestamp is not None:
-            condition.onsetDateTime = parse_datetime(onset_timestamp)
+            # A date-only onset in FHIR dateTime is intentionally less precise
+            # than a timestamp; parse_datetime() currently invents end-of-day.
+            # Preserve YYYY-MM-DD without fabricating any time of day.
+            if isinstance(onset_timestamp, str) and len(onset_timestamp.strip()) == 10 and onset_timestamp[4:5] == "-" and onset_timestamp[7:8] == "-":
+                condition.onsetDateTime = onset_timestamp.strip()
+            else:
+                condition.onsetDateTime = parse_datetime(onset_timestamp)
 
     extension_list.append(Extension(
         url="http://qualityregistry.org/StructureDefinition/wakeup-stroke-ext",
