@@ -110,6 +110,8 @@ NO_THROMBECTOMY_REASON_MAP = {"2": "1", "3": "8"}
 THROMBECTOMY_LOCAL_MAP = {"1": True, "2": False, "3": False, "9": False}
 
 BOOLEAN_COLUMNS = [
+    # Keep the raw TIA flag internally for combination; it is not an
+    # additional published output-contract column.
     "risk_tia", "wakeup_stroke", "risk_hyperlipidemia", "risk_smoker",
     "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
@@ -134,7 +136,7 @@ OUTPUT_COLUMNS = [
     "inhospital_stroke", "onset_timestamp", "hospital_timestamp",
     "arrival_mode_id", "hospitalized_in", "nihss_score", "prestroke_mrs",
     "systolic_pressure", "diastolic_pressure", "risk_hyperlipidemia",
-    "risk_tia", "risk_previous_ischemic_stroke", "risk_previous_stroke",
+    "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction", "risk_diabetes",
     "risk_atrial_fibrillation", "risk_hypertension", "risk_smoker", "risk_smoker_last_10_years",
@@ -305,9 +307,16 @@ def normalize_sk_registry_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dic
             lambda value: _map_value(value, THROMBECTOMY_LOCAL_MAP)
         )
 
-    # Preserve OA_TIA separately from OA_ISCHEMICKA_CMP: a TIA is not
-    # semantically identical to a previous ischemic stroke. Both original
-    # indicators remain accessible in the normalized output.
+    # RES-Q registry mapping decision: OA_TIA and OA_ISCHEMICKA_CMP
+    # contribute to one prior ischemic cerebrovascular-event indicator.
+    # Keep source-level inputs intact; aggregate with three-valued OR so
+    # unknown != negative. This is deliberate RES-Q generalization, not
+    # a claim that TIA and ischemic stroke are identical SNOMED diagnoses.
+    out["risk_previous_ischemic_stroke"] = out.apply(
+        lambda row: _disjunction(
+            row, ["risk_previous_ischemic_stroke", "risk_tia"]
+        ), axis=1
+    )
     out["risk_previous_stroke"] = out.apply(
         lambda row: _disjunction(
             row, ["risk_previous_ischemic_stroke", "risk_previous_hemorrhagic_stroke"]

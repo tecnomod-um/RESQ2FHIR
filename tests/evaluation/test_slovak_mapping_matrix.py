@@ -15,10 +15,10 @@ class SlovakMappingMatrix(unittest.TestCase):
         self.assertEqual(sk.OUTPUT_COLUMNS, list(normalized.columns))
         return normalized.iloc[0]
 
-    def test_inventory_71_source_keys_to_82_contract_fields(self):
+    def test_inventory_71_source_keys_to_81_contract_fields(self):
         self.assertEqual(71, len(sk.COLUMN_MAPPING))
-        self.assertEqual(82, len(sk.OUTPUT_COLUMNS))
-        self.assertEqual(82, len(set(sk.OUTPUT_COLUMNS)))
+        self.assertEqual(81, len(sk.OUTPUT_COLUMNS))
+        self.assertEqual(81, len(set(sk.OUTPUT_COLUMNS)))
 
     def test_every_declared_source_codebook_entry(self):
         # 13 codebooks, 48 enumerated source-value branches.
@@ -174,7 +174,7 @@ class SlovakMappingMatrix(unittest.TestCase):
             if source in {"ICO", "NAZOV", "NÁZOV NEMOCNICE SKRÁTENÝ"}:
                 value = "synthetic-provider"
             with self.subTest(source=source):
-                self.assertEqual(82, len(self.row(**{source: value})))
+                self.assertEqual(81, len(self.row(**{source: value})))
 
     def test_2024_imaging_cross_product_is_executable(self):
         """5 modality statuses x 3 CTA states x 3 perfusion states = 45 scenarios."""
@@ -215,13 +215,31 @@ class SlovakMappingMatrix(unittest.TestCase):
         self.assertEqual("2026-05-21", self.row(PACDATVYK="05/21/2026",
                                    PACCASVYK=None)["onset_timestamp"])
 
-    def test_fixed_distinct_prior_tia_and_ischemic_stroke(self):
-        tia = self.row(OA_TIA="1", OA_ISCHEMICKA_CMP="2")
-        stroke = self.row(OA_TIA="2", OA_ISCHEMICKA_CMP="1")
-        self.assertNotEqual(tia["risk_previous_ischemic_stroke"],
-                            stroke["risk_previous_ischemic_stroke"])
-        self.assertEqual(True, tia["risk_tia"])
-        self.assertEqual(False, stroke["risk_tia"])
+    def test_combined_prior_tia_or_ischemic_stroke_in_resq_contract(self):
+        # Deliberate RES-Q registry generalization of either positive history.
+        for tia, stroke, expected in (
+            ("1", "2", True), ("2", "1", True),
+            ("1", "1", True), ("2", "2", False),
+            (None, "1", True), ("1", None, True),
+        ):
+            with self.subTest(tia=tia, stroke=stroke):
+                row = self.row(OA_TIA=tia, OA_ISCHEMICKA_CMP=stroke)
+                self.assertEqual(expected, row["risk_previous_ischemic_stroke"])
+                self.assertNotIn("risk_tia", row.index)
+                # risk_previous_stroke also combines the hemorrhagic flag.
+                # With an absent hemorrhagic source, False + unknown stays
+                # unknown; a positive ischemic/TIA event still wins.
+                if expected is True:
+                    self.assertEqual(True, row["risk_previous_stroke"])
+                else:
+                    self.assertTrue(pd.isna(row["risk_previous_stroke"]))
+
+    def test_combined_prior_event_unknown_does_not_become_negative(self):
+        for tia, stroke in ((None, None), (None, "2"), ("2", None)):
+            with self.subTest(tia=tia, stroke=stroke):
+                row = self.row(OA_TIA=tia, OA_ISCHEMICKA_CMP=stroke)
+                self.assertTrue(pd.isna(row["risk_previous_ischemic_stroke"]))
+                self.assertTrue(pd.isna(row["risk_previous_stroke"]))
 
 
 if __name__ == "__main__":

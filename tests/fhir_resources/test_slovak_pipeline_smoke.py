@@ -58,6 +58,19 @@ class SlovakMappingPipelineSmokeTests(unittest.TestCase):
         self.assertTrue(_check("imaging_done", "3", bundle))
         self.assertTrue(_check("imaging_type", "1", bundle))
 
+    def test_prior_tia_and_ischemic_stroke_share_one_resq_indicator(self):
+        for tia, ischemic in (("1", "2"), ("2", "1"), ("1", "1")):
+            with self.subTest(tia=tia, ischemic=ischemic):
+                row, bundle = self.generate(
+                    OA_TIA=tia, OA_ISCHEMICKA_CMP=ischemic,
+                )
+                self.assertNotIn("risk_tia", row.index)
+                self.assertEqual(True, row["risk_previous_ischemic_stroke"])
+                self.assertEqual(True, row["risk_previous_stroke"])
+                self.assertTrue(
+                    _check("risk_previous_ischemic_stroke", True, bundle)
+                )
+
     def test_missing_clock_time_preserves_onset_date_in_actual_fhir(self):
         row, bundle = self.generate(
             PACDATVYK="05/21/2026", PACCASVYK=None,
