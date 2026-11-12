@@ -310,7 +310,10 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
 
     ###################################### 2.1 Brain imaging ######################################
     imaging_type = safe_get(raw, "imaging_type", required=False)
-    if imaging_type is not None:
+    imaging_done_id = safe_get(raw, "imaging_done", required=False)
+    # Explicit NCZI 'no CT/MR' requires a not-done Procedure even though
+    # no modality code was supplied. Do not invent CT or MR as the modality.
+    if imaging_type is not None or imaging_done_id == "2":
         ############################### 2.1.1 Old infarcts seen in brain imaging (Observation) ######################################
         observation_list_old_infarcts = build_observation_old_infarcts_brainstem(patient_ref=patient_ref,
                                                                                  encounter_ref=encounter_ref,
