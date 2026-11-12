@@ -13,6 +13,7 @@ The 2024 NCZI source adapter (`scripts/normalization/sk_registry.py`) and the ge
 - Six local imaging combinations; timestamps, local versus external door-to-needle, mRS parsing, treatment reason precedence and invalid source codes.
 - The generic adapter's labelled enums and known numeric-ID coercion defect.
 - Downstream FHIR R5 regression tests for NIHSS admission/discharge context and `Encounter.actualPeriod`.
+- Six controlled tests of semantic read-back (three original comparator checks; mutations of age, NIHSS value, NIHSS assessment context, and external IVT reason) without making unmeasured FHIR validation sensitivity claims.
 
 The source mapping defines **71 CSV input aliases** and **81 normalized output fields**. This code inventory must not be equated with the **70 clinically agreed variables** reported in the paper; they require a separate reconciliation against Supplementary Table S1.
 
