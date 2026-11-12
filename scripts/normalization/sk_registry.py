@@ -110,7 +110,9 @@ NO_THROMBECTOMY_REASON_MAP = {"2": "1", "3": "8"}
 THROMBECTOMY_LOCAL_MAP = {"1": True, "2": False, "3": False, "9": False}
 
 BOOLEAN_COLUMNS = [
-    "wakeup_stroke", "risk_hyperlipidemia", "risk_smoker",
+    # Keep the raw TIA flag internally for combination; it is not an
+    # additional published output-contract column.
+    "risk_tia", "wakeup_stroke", "risk_hyperlipidemia", "risk_smoker",
     "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction",
