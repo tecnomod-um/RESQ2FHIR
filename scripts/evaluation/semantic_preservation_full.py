@@ -106,6 +106,10 @@ def _brain_imaging_procedures(bundle: dict) -> list[dict]:
         for member in ImagingType
         if member != ImagingType.CAROTID
     }
+    expected_codes.add((
+        "http://qualityregistry.org/CodeSystem/brain-imaging-type-cs",
+        "brain-imaging-unspecified",
+    ))
     return [
         procedure
         for procedure in base._resources(bundle, "Procedure")
@@ -127,12 +131,17 @@ def _imaging_done(bundle: dict, value: Any) -> bool:
 
     if member == ImagingDone.YES:
         return any(procedure.get("status") == "completed" for procedure in procedures)
+    elsewhere_reason = base._enum_coding(ProcedureNotDoneReason.DONE_ELSEWHERE)
     if member == ImagingDone.NO:
-        return any(procedure.get("status") == "not-done" for procedure in procedures)
-    if member == ImagingDone.ELSEWHERE:
-        expected_reason = base._enum_coding(ProcedureNotDoneReason.DONE_ELSEWHERE)
         return any(
-            base._concept_has(procedure.get("statusReason"), expected_reason)
+            procedure.get("status") == "not-done"
+            and not base._concept_has(procedure.get("statusReason"), elsewhere_reason)
+            for procedure in procedures
+        )
+    if member == ImagingDone.ELSEWHERE:
+        return any(
+            procedure.get("status") == "not-done"
+            and base._concept_has(procedure.get("statusReason"), elsewhere_reason)
             for procedure in procedures
         )
     return False
