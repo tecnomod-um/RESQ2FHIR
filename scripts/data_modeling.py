@@ -360,20 +360,6 @@ def build_stroke_case_context(file_id: str, raw: dict,) -> StrokeCaseContext:
                                                                          
         procedure_imaging_ref= context.add_resource(proc_img)
         #entries.append(BundleEntry(fullUrl=procedure_imaging_ref, resource=proc_img, request=BundleEntryRequest(method="POST", url="Procedure")))
-    elif imaging_done_id == "2":
-        # NCZI 2024 explicitly says *no CT/MR*. Generate a reporting-hospital
-        # not-done imaging Procedure, but NEVER invent a DiagnosticReport or
-        # perfusion/old-infarct observations for a study that did not occur.
-        not_done_imaging = build_imaging_procedure(
-            patient_ref=patient_ref,
-            encounter_ref=encounter_ref,
-            diagnostic_report_ref=None,
-            imaging_done=ImagingDone.NO,
-            imaging_type=None,
-            post_acute_care=False,
-            imaging_timestamp=None,
-        )
-        context.add_resource(not_done_imaging)
 
     ########################## 2.2 Stroke Type ###########################
     condition_stroke_ref = None
