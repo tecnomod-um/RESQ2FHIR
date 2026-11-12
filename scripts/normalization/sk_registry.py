@@ -111,7 +111,7 @@ THROMBECTOMY_LOCAL_MAP = {"1": True, "2": False, "3": False, "9": False}
 
 BOOLEAN_COLUMNS = [
     "risk_tia", "wakeup_stroke", "risk_hyperlipidemia", "risk_smoker",
-    "risk_tia", "risk_previous_ischemic_stroke", "risk_previous_stroke",
+    "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction",
     "risk_diabetes", "before_onset_antidiabetics", "risk_atrial_fibrillation",
@@ -134,7 +134,7 @@ OUTPUT_COLUMNS = [
     "inhospital_stroke", "onset_timestamp", "hospital_timestamp",
     "arrival_mode_id", "hospitalized_in", "nihss_score", "prestroke_mrs",
     "systolic_pressure", "diastolic_pressure", "risk_hyperlipidemia",
-    "risk_previous_ischemic_stroke", "risk_previous_stroke",
+    "risk_tia", "risk_previous_ischemic_stroke", "risk_previous_stroke",
     "risk_previous_hemorrhagic_stroke",
     "risk_coronary_artery_disease_or_myocardial_infarction", "risk_diabetes",
     "risk_atrial_fibrillation", "risk_hypertension", "risk_smoker", "risk_smoker_last_10_years",
