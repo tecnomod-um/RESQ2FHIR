@@ -49,6 +49,13 @@ class SlovakMappingPipelineSmokeTests(unittest.TestCase):
         self.assertTrue(_check("imaging_done", "3", bundle))
         self.assertTrue(_check("imaging_type", "1", bundle))
 
+    def test_missing_clock_time_preserves_onset_date_in_actual_fhir(self):
+        row, bundle = self.generate(
+            PACDATVYK="05/21/2026", PACCASVYK=None,
+        )
+        self.assertEqual("2026-05-21", row["onset_timestamp"])
+        self.assertTrue(_check("onset_timestamp", "2026-05-21", bundle))
+
     def test_combined_ct_imaging_uses_perfusion_category(self):
         row, bundle = self.generate(
             CT_MR_VYSETRENIE="1", CT_ANGIO="1", CT_PERFUZNE="1",
