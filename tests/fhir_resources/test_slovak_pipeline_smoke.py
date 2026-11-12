@@ -37,6 +37,11 @@ class SlovakMappingPipelineSmokeTests(unittest.TestCase):
         self.assertEqual("2", row["imaging_done"])
         self.assertTrue(_check("imaging_done", "2", bundle))
         self.assertFalse(_check("imaging_done", "3", bundle))
+        # Source 'no CT/MR' must not synthesize imaging findings/report.
+        self.assertFalse(any(
+            entry.get("resource", {}).get("resourceType") == "DiagnosticReport"
+            for entry in bundle.get("entry", [])
+        ))
 
     def test_external_ct_retains_external_not_local_semantics(self):
         row, bundle = self.generate(CT_MR_VYSETRENIE="2")
