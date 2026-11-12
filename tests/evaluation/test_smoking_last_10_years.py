@@ -94,8 +94,8 @@ class SmokingLast10YearsTests(unittest.TestCase):
             False,
         )
 
-    def test_tia_history_is_flagged_until_distinct_fhir_encoding_exists(self):
-        self.assertEqual(NON_REVERSIBLE_FIELDS, {"risk_tia"})
+    def test_all_published_contract_fields_have_readback_comparators(self):
+        self.assertEqual(NON_REVERSIBLE_FIELDS, set())
 
 
 if __name__ == "__main__":
