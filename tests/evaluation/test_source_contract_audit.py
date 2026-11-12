@@ -71,7 +71,7 @@ class SourceContractAuditTests(unittest.TestCase):
             1, report["reviewFlags"]["mt_external_procedure_and_time_not_checked_in_fhir"]
         )
 
-    def test_flags_explicit_external_and_no_imaging_not_modelled(self):
+    def test_audits_explicit_external_and_no_imaging_status(self):
         source = pd.DataFrame([
             {"CT_MR_VYSETRENIE": "2"},
             {"CT_MR_VYSETRENIE": "4"},
@@ -79,10 +79,13 @@ class SourceContractAuditTests(unittest.TestCase):
         ])
         report = self._run(source)
         self.assertEqual(
-            2, report["reviewFlags"]["source_external_brain_imaging_not_modelled"]
+            3, report["byRule"]["brain_imaging_location_or_absence_status"]["matched"]
         )
         self.assertEqual(
-            1, report["reviewFlags"]["source_no_brain_imaging_not_explicitly_modelled"]
+            2, report["byRule"]["external_imaging_modality"]["matched"]
+        )
+        self.assertEqual(
+            1, report["byRule"]["no_imaging_does_not_invent_modality"]["matched"]
         )
 
     def test_unknown_tici_is_not_forced_to_grade_three(self):

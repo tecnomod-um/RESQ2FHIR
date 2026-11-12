@@ -353,11 +353,20 @@ def normalize_slovak_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str
         normalized = normalized.loc[:, ~normalized.columns.duplicated()]
 
     for column in normalized.columns:
-        normalized[column] = normalized[column].map(normalize_scalar)
+        if column in FIELD_ENUMS:
+            # Numeric category IDs ("1", "2", ...) must be resolved BEFORE
+            # generic Boolean string coercion, which would turn "1" into True.
+            normalized[column] = normalized[column].map(
+                lambda value, field=column: normalize_enum_value(field, value)
+            )
+        elif column in {"case", "provider", "provider_id", "hospital_name"}:
+            normalized[column] = normalized[column].map(
+                lambda value: None if _is_missing(value) else str(value).strip()
+            )
+        else:
+            normalized[column] = normalized[column].map(normalize_scalar)
         if column.endswith("_date") or column.endswith("_timestamp") or column in {"discharge_date"}:
             normalized[column] = normalized[column].map(normalize_temporal_value)
-        if column in FIELD_ENUMS:
-            normalized[column] = normalized[column].map(lambda value, field=column: normalize_enum_value(field, value))
 
     report = {
         "rows": len(normalized),

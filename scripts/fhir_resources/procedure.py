@@ -58,6 +58,9 @@ def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_rep
                 status_reason = ProcedureNotDoneReason.UNKNOWN
                 procedure_final.status = "not-done"
         elif imaging_done == ImagingDone.ELSEWHERE:
+                # This Procedure concerns the reporting hospital. The imaging
+                # was done externally, hence not performed at this location.
+                procedure_final.status = "not-done"
                 status_reason = ProcedureNotDoneReason.DONE_ELSEWHERE
             
         if status_reason is not None:
@@ -72,6 +75,15 @@ def build_imaging_procedure(patient_ref: str, encounter_ref: str, diagnostic_rep
         if imaging_type is not None:
             imaging_code = CodeableConcept(coding=[imaging_type.to_coding()])
             procedure_final.code = imaging_code
+        elif imaging_done == ImagingDone.NO:
+            # The source explicitly excludes CT/MR without selecting a specific
+            # modality. Do not falsely claim a CT-only or MR-only non-event.
+            # Local code requires RES-Q IG terminology-owner review.
+            procedure_final.code = CodeableConcept(coding=[Coding(
+                system="http://qualityregistry.org/CodeSystem/brain-imaging-type-cs",
+                code="brain-imaging-unspecified",
+                display="Brain CT/MR imaging (unspecified modality)",
+            )])
         
         category_coding = Coding(
             system="http://snomed.info/sct",

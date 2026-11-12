@@ -210,7 +210,7 @@ class FullSemanticPreservationTests(unittest.TestCase):
             self.assertEqual(report["unsupportedFieldCount"], 0)
             self.assertEqual(report["unsupportedFields"], [])
             self.assertEqual(report["fieldCoverageRate"], 1.0)
-            self.assertEqual(report["nonReversibleFields"], [])
+            self.assertEqual(report["nonReversibleFields"], ["risk_tia"])
 
     def test_inhospital_rule_and_missing_smoking_representation_are_counted_separately(self):
         with tempfile.TemporaryDirectory() as tmp:

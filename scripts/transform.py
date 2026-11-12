@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 import pandas as pd
+from scripts.normalization.slovak import FIELD_ENUMS
 from fhir.resources.bundle import Bundle 
 import uuid
 from decimal import Decimal
@@ -78,7 +79,13 @@ def load_csv(csv_path: Path) -> pd.DataFrame:
 
 def row_to_dict(row: pd.Series) -> Dict[str, Any]:
     """Convert pandas Series row to dict, handling NaN values."""
-    def coerce_value(value):
+    def coerce_value(value, field):
+        if field in FIELD_ENUMS and isinstance(value, (str, int, np.integer)):
+            # Preserve registry enum IDs (including "1") as category keys;
+            # generic Boolean conversion is only safe for non-enum fields.
+            return str(value).strip() or None
+        if field in {"case", "provider_id", "provider"} and value is not None:
+            return str(value).strip()
         if isinstance(value, (bool, np.bool_)):
             return bool(value)
         if isinstance(value, str):
@@ -99,7 +106,7 @@ def row_to_dict(row: pd.Series) -> Dict[str, Any]:
         if pd.isna(value):
             result[key] = None
         else:
-            result[key] = coerce_value(value)
+            result[key] = coerce_value(value, key)
     return result
 
 

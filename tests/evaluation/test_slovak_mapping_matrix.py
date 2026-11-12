@@ -15,10 +15,10 @@ class SlovakMappingMatrix(unittest.TestCase):
         self.assertEqual(sk.OUTPUT_COLUMNS, list(normalized.columns))
         return normalized.iloc[0]
 
-    def test_inventory_71_source_keys_to_81_contract_fields(self):
+    def test_inventory_71_source_keys_to_82_contract_fields(self):
         self.assertEqual(71, len(sk.COLUMN_MAPPING))
-        self.assertEqual(81, len(sk.OUTPUT_COLUMNS))
-        self.assertEqual(81, len(set(sk.OUTPUT_COLUMNS)))
+        self.assertEqual(82, len(sk.OUTPUT_COLUMNS))
+        self.assertEqual(82, len(set(sk.OUTPUT_COLUMNS)))
 
     def test_every_declared_source_codebook_entry(self):
         # 13 codebooks, 48 enumerated source-value branches.
@@ -85,12 +85,15 @@ class SlovakMappingMatrix(unittest.TestCase):
             ("06", (False, True, False, True)),
             ("6", (False, True, False, True)),
             ("98", (False, False, True, True)),
-            (None, (None, None, None, False)),
+            (None, (None, None, None, None)),
         ):
             with self.subTest(OA_ANTIKOAGULANCIA=code):
                 actual = self.row(OA_ANTIKOAGULANCIA=code)
                 for field, value in zip(fields, expected):
-                    self.assertEqual(value, actual[field])
+                    if value is None:
+                        self.assertTrue(pd.isna(actual[field]))
+                    else:
+                        self.assertEqual(value, actual[field])
 
     def test_all_eight_discharge_medications_and_aggregate(self):
         source_fields = ("UKON_ASA", "UKON_CLOPIDOGREL", "UKON_WARFARIN",
@@ -171,7 +174,7 @@ class SlovakMappingMatrix(unittest.TestCase):
             if source in {"ICO", "NAZOV", "NÁZOV NEMOCNICE SKRÁTENÝ"}:
                 value = "synthetic-provider"
             with self.subTest(source=source):
-                self.assertEqual(81, len(self.row(**{source: value})))
+                self.assertEqual(82, len(self.row(**{source: value})))
 
     def test_2024_imaging_cross_product_is_executable(self):
         """5 modality statuses x 3 CTA states x 3 perfusion states = 45 scenarios."""
@@ -187,40 +190,38 @@ class SlovakMappingMatrix(unittest.TestCase):
                         # For 2/4/5, lossy current behavior is tracked as xfail
                         # in dedicated tests, not silently endorsed here.
 
-    @unittest.expectedFailure
-    def test_known_gap_ct_cta_and_perfusion_precedence(self):
+    def test_fixed_ct_cta_and_perfusion_precedence(self):
         self.assertEqual("3", self.row(CT_MR_VYSETRENIE="1",
                                       CT_ANGIO="1", CT_PERFUZNE="1")["imaging_type"])
 
-    @unittest.expectedFailure
-    def test_known_gap_mr_mra_and_perfusion_precedence(self):
+    def test_fixed_mr_mra_and_perfusion_precedence(self):
         self.assertEqual("6", self.row(CT_MR_VYSETRENIE="3",
                                       CT_ANGIO="1", CT_PERFUZNE="1")["imaging_type"])
 
-    @unittest.expectedFailure
-    def test_known_gap_external_imaging_not_preserved(self):
+    def test_fixed_external_imaging_not_preserved(self):
         self.assertEqual("3", self.row(CT_MR_VYSETRENIE="2")["imaging_done"])
+        self.assertEqual("1", self.row(CT_MR_VYSETRENIE="2")["imaging_type"])
+        self.assertEqual("3", self.row(CT_MR_VYSETRENIE="4")["imaging_done"])
+        self.assertEqual("4", self.row(CT_MR_VYSETRENIE="4")["imaging_type"])
 
-    @unittest.expectedFailure
-    def test_known_gap_explicit_no_imaging_not_preserved(self):
+    def test_fixed_explicit_no_imaging_not_preserved(self):
         self.assertEqual("2", self.row(CT_MR_VYSETRENIE="5")["imaging_done"])
 
-    @unittest.expectedFailure
-    def test_known_gap_unknown_aggregate_forced_false(self):
-        self.assertIsNone(self.row(OA_ASPIRIN=None,
-                                   OA_CLOPIDOGREL=None)["before_onset_any_antiplatelet"])
+    def test_fixed_unknown_aggregate_forced_false(self):
+        self.assertTrue(pd.isna(self.row(OA_ASPIRIN=None,
+                                   OA_CLOPIDOGREL=None)["before_onset_any_antiplatelet"]))
 
-    @unittest.expectedFailure
-    def test_known_gap_missing_onset_time_fabricates_midnight(self):
-        self.assertIsNone(self.row(PACDATVYK="05/21/2026",
+    def test_fixed_missing_onset_time_fabricates_midnight(self):
+        self.assertEqual("2026-05-21", self.row(PACDATVYK="05/21/2026",
                                    PACCASVYK=None)["onset_timestamp"])
 
-    @unittest.expectedFailure
-    def test_known_gap_distinct_prior_tia_and_ischemic_stroke(self):
+    def test_fixed_distinct_prior_tia_and_ischemic_stroke(self):
         tia = self.row(OA_TIA="1", OA_ISCHEMICKA_CMP="2")
         stroke = self.row(OA_TIA="2", OA_ISCHEMICKA_CMP="1")
         self.assertNotEqual(tia["risk_previous_ischemic_stroke"],
                             stroke["risk_previous_ischemic_stroke"])
+        self.assertEqual(True, tia["risk_tia"])
+        self.assertEqual(False, stroke["risk_tia"])
 
 
 if __name__ == "__main__":
