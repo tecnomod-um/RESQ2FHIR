@@ -26,9 +26,8 @@ class GenericSlovakAdapterRegressions(unittest.TestCase):
     def test_column_alias(self):
         self.assertEqual("case-1", self.row(case_id="case-1")["case"])
 
-    @unittest.expectedFailure
-    def test_known_gap_categorical_numeric_string_must_not_be_boolean(self):
-        # Current normalize_scalar("1") -> True, before FIELD_ENUMS lookup.
+    def test_fixed_categorical_numeric_string_must_not_be_boolean(self):
+        # Enum identifiers must be resolved before boolean strings.
         row = self.row(sex="1", stroke_type="2", arrival_mode="1")
         self.assertEqual("1", row["sex"])
         self.assertEqual("2", row["stroke_type"])

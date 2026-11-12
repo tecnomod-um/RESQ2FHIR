@@ -31,13 +31,17 @@ EXTRA_FIELDS = {
     "provider",
     "provider_id",
     "risk_smoker_last_10_years",
+    "risk_tia",
 }
 
 SUPPORTED_FIELDS = set(base.SUPPORTED_FIELDS) | EXTRA_FIELDS
 
 # All normalized contract fields now have an independently testable target
 # representation or deterministic transformation rule.
-NON_REVERSIBLE_FIELDS: set[str] = set()
+# The NCZI TIA history is now retained separately in the normalized contract.
+# The RES-Q IG still needs a separately adjudicated prior-TIA representation:
+# count these answers as unpreserved rather than silently merging with stroke.
+NON_REVERSIBLE_FIELDS: set[str] = {"risk_tia"}
 
 
 def _organization_candidates(bundle: dict) -> list[dict]:
@@ -106,6 +110,10 @@ def _brain_imaging_procedures(bundle: dict) -> list[dict]:
         for member in ImagingType
         if member != ImagingType.CAROTID
     }
+    expected_codes.add((
+        "http://qualityregistry.org/CodeSystem/brain-imaging-type-cs",
+        "brain-imaging-unspecified",
+    ))
     return [
         procedure
         for procedure in base._resources(bundle, "Procedure")
@@ -127,12 +135,17 @@ def _imaging_done(bundle: dict, value: Any) -> bool:
 
     if member == ImagingDone.YES:
         return any(procedure.get("status") == "completed" for procedure in procedures)
+    elsewhere_reason = base._enum_coding(ProcedureNotDoneReason.DONE_ELSEWHERE)
     if member == ImagingDone.NO:
-        return any(procedure.get("status") == "not-done" for procedure in procedures)
-    if member == ImagingDone.ELSEWHERE:
-        expected_reason = base._enum_coding(ProcedureNotDoneReason.DONE_ELSEWHERE)
         return any(
-            base._concept_has(procedure.get("statusReason"), expected_reason)
+            procedure.get("status") == "not-done"
+            and not base._concept_has(procedure.get("statusReason"), elsewhere_reason)
+            for procedure in procedures
+        )
+    if member == ImagingDone.ELSEWHERE:
+        return any(
+            procedure.get("status") == "not-done"
+            and base._concept_has(procedure.get("statusReason"), elsewhere_reason)
             for procedure in procedures
         )
     return False
@@ -250,11 +263,14 @@ def _thrombectomy_perforation(bundle: dict, value: Any) -> bool | None:
 
 def _onset_timestamp(bundle: dict, value: Any) -> bool:
     condition = base._stroke_condition(bundle)
-    return bool(
-        condition
-        and base._as_datetime(condition.get("onsetDateTime"))
-        == base._as_datetime(value)
-    )
+    if not condition:
+        return False
+    actual = condition.get("onsetDateTime")
+    # FHIR R5 dateTime supports partial dates. A synthetic midnight is NOT
+    # semantically interchangeable with an NCZI date whose time is unknown.
+    if isinstance(value, str) and len(value) == 10 and value[4:5] == "-" and value[7:8] == "-":
+        return actual == value
+    return base._as_datetime(actual) == base._as_datetime(value)
 
 
 def _check(

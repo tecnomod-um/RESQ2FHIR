@@ -101,13 +101,22 @@ def audit_source_to_contract(
 
         if "CT_MR_VYSETRENIE" in source.columns:
             imaging_source = _text(s["CT_MR_VYSETRENIE"])
-            if imaging_source in {"2", "4"}:
-                # 2024: CT/MR at another hospital. The existing adapter
-                # currently only derives imaging_type for codes 1 and 3.
-                flags["source_external_brain_imaging_not_modelled"] += 1
-            elif imaging_source == "5":
-                # 2024: explicit no CT/MR, but normalized imaging_done is null.
-                flags["source_no_brain_imaging_not_explicitly_modelled"] += 1
+            # The 2024 source explicitly distinguishes local / elsewhere /
+            # no study. Audit status independently of selected modality.
+            done_map = {"1": "1", "2": "3", "3": "1",
+                        "4": "3", "5": "2"}
+            type_map = {"1": "1", "2": "1", "3": "4", "4": "4"}
+            if imaging_source in done_map:
+                record("brain_imaging_location_or_absence_status",
+                       _text(n.get("imaging_done")) == done_map[imaging_source])
+                if imaging_source in {"2", "4"}:
+                    record("external_imaging_modality",
+                           _text(n.get("imaging_type")) == type_map[imaging_source])
+                if imaging_source == "5":
+                    record("no_imaging_does_not_invent_modality",
+                           not _text(n.get("imaging_type")))
+            elif imaging_source:
+                flags["imaging_unmapped_source_code"] += 1
 
         if "ENDO_VYKON" in source.columns:
             mt_source = _text(s["ENDO_VYKON"])
@@ -180,7 +189,7 @@ def audit_source_to_contract(
             "DATUM_ENDO_V: arterial puncture vs procedure start",
             "2024 TICI 02a (<2/3) and 02b (slow distal filling) differ "
             "from target mTICI 2a (<1/2) and 2b (>1/2) definitions",
-            "CT_MR_VYSETRENIE=2/4/5 are not fully modelled in target contract",
+            "CT/MR at another institution is represented by a reporting-hospital not-done Procedure, not the historical completed remote event",
             "ENDO_VYKON=2 external MT time/grade are not checked downstream",
             "NL_TROMBOLYZA=2: source external treatment time is not checked "
             "by the normalized-contract-to-FHIR semantic evaluator",

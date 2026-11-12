@@ -12,42 +12,40 @@ The 2024 NCZI source adapter (`scripts/normalization/sk_registry.py`) and the ge
 - Three IVT administration states and four local/external/planned/none mechanical thrombectomy states, including corresponding RES-Q reason codes.
 - Prior anticoagulant code variants, eight discharge-medication flags, aggregate medication indicators, five ischemic-etiology categories and seven hemorrhage-cause codes.
 - Six local imaging combinations; timestamps, local versus external door-to-needle, mRS parsing, treatment reason precedence and invalid source codes.
-- The generic adapter's labelled enums and known numeric-ID coercion defect.
+- The generic adapter's labelled enums and repaired numeric-ID handling.
 - Downstream FHIR R5 regression tests for NIHSS admission/discharge context and `Encounter.actualPeriod`.
 - Six controlled tests of semantic read-back (three original comparator checks; mutations of age, NIHSS value, NIHSS assessment context, and external IVT reason) without making unmeasured FHIR validation sensitivity claims.
 
-The source mapping defines **71 CSV input aliases** and **81 normalized output fields**. This code inventory must not be equated with the **70 clinically agreed variables** reported in the paper; they require a separate reconciliation against Supplementary Table S1.
+The source mapping defines **71 CSV input aliases** and **82 normalized output fields** on this change branch, including the newly retained `risk_tia` field (formerly 81). This code inventory must not be equated with the **70 clinically agreed variables** reported in the paper; they require a separate reconciliation against Supplementary Table S1.
 
-## Expected failures and acceptance criteria
+## Remediation results and boundaries
 
-`unittest.expectedFailure` marks the following currently unresolved behavior. **An expected failure does not count as a successful mapping**; convert each to a normal passing test only after fixing and documenting its semantics.
+The eight formerly expected failures have been converted to executable, ordinary assertions. On this branch:
 
-| ID | Known gap | Acceptance criterion |
+| ID | Implemented | Interpretation |
 |---|---|---|
-| G01 | CT + CTA + perfusion overwritten to CT + CTA | Preserve all provided imaging modalities |
-| G02 | MR + MRA + perfusion overwritten to MR + MRA | Preserve all provided imaging modalities |
-| G03 | CT/MR performed elsewhere not represented | Preserve explicit external imaging location/status |
-| G04 | Explicit no imaging becomes unknown | Explicit no-imaging state retained |
-| G05 | Missing inputs can yield false aggregate flags | Agree three-valued semantics; unknown ≠ negative |
-| G06 | Onset date with unknown time becomes midnight | Preserve time precision/unknown time |
-| G07 | TIA history and ischemic stroke history conflated | Retain separate source distinctions or document deliberate generalization |
-| G08 | Generic numeric enum string `'1'` becomes `True` | Field-aware enum before Boolean coercion |
+| G01 | CT + CTA + perfusion selects target composite CT/CTA/perfusion code | Preserves combination at available target category granularity |
+| G02 | MR + MRA + perfusion selects target composite MR/MRA/perfusion code | Preserves combination at available target category granularity |
+| G03 | Source CT/MR elsewhere maps to `imaging_done=3`, retaining CT/MR subtype | FHIR Procedure records **not performed at reporting hospital** with `DONE_ELSEWHERE`; historical completed remote event/performer is **not** fully encoded |
+| G04 | Explicit no CT/MR maps to `imaging_done=2`, without inventing CT or MR | Emits not-done generic brain imaging Procedure, using local `brain-imaging-unspecified` code **pending IG terminology approval** |
+| G05 | Derived OR uses three-valued semantics | Known true / known all-false / otherwise unknown |
+| G06 | Date-only source onset remains `YYYY-MM-DD` | FHIR R5 `Condition.onsetDateTime` preserves partial precision; read-back rejects fabricated midnight |
+| G07 | TIA and previous ischemic stroke source flags preserved **separately** | `risk_tia` is newly added to the output contract, but **not mapped to an independently coded RES-Q risk factor yet**; evaluator explicitly flags it as non-reversible. The source→FHIR clinical problem remains **open** |
+| G08 | Enum IDs are processed before generic Boolean coercion | String IDs remain categorical values, including at normalized CSV converter input |
 
-Additional *clinical* open items are **not test failures**: `STAV_M_RANKIN_2` timepoint, `DATUM_ENDO_V` groin-time meaning, the threshold mismatch between 2024 TICI and RES-Q mTICI 2a/2b, historical external IVT/MT events, family-history interpretation of `RA_CMP`, and multi-flag no-treatment reasons. These need source-owner/clinician decisions, not assertions based only on code.
+The technical tests above are **not** a claim that all 70 clinically selected source variables are clinically equivalent to their RES-Q representations. In particular, unresolved clinical/IG questions include `STAV_M_RANKIN_2` timepoint, `DATUM_ENDO_V` groin-time interpretation, 2024 TICI versus mTICI 2a/2b definitions, `RA_CMP` family history versus personal stroke history, and external IVT/MT completed procedures and timestamps. The generic local brain-imaging code must be reviewed against the current IG/ValueSets before claiming profile validation.
 
-**Important correction to previous off-repository review:** The current `main` FHIR builder already retains NIHSS numerical values and assigns `Encounter.actualPeriod`. New tests guard these **resolved** cases. Do not report them as current defects.
+**Baseline reference:** The current default-branch implementation already correctly retains NIHSS numeric values and `Encounter.actualPeriod`; the regression tests guard those existing behaviors. Historical paper metrics must not be modified without a versioned repeat.
 
 ## Execution
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python -m unittest discover -s tests/evaluation -p 'test_*.py' -v
-python -m unittest tests.fhir_resources.test_slovak_regressions tests.fhir_resources.test_slovak_observation_context -v
+python -m unittest tests.fhir_resources.test_slovak_regressions tests.fhir_resources.test_slovak_observation_context tests.fhir_resources.test_slovak_imaging_and_time -v
 ```
 
-The evaluation GitHub Actions workflow is updated to include these modules on a PR. No patient-level values are placed in fixtures or output.
-
-An initial **local** check against user-uploaded adapter copies produced 21 source-specific test methods (14 passed, 7 expected failures) and 5 generic-adapter methods (4 passed, 1 expected failure). The generic local check substituted a minimal FHIR `Coding` import stub; full FHIR validation was **not** run locally. The GitHub CI result on the repository's own code is the authoritative execution. `unittest` method counts exclude additional `subTest` trials and must not be used as clinical accuracy denominators.
+For actual end-to-end confirmation, run a version-frozen synthetic NCZI source CSV through `sk_registry`, `transform.py`, the `source_contract_audit`, `evaluate`, and the IG validator. The pipeline has not been revalidated here against the complete IG. Test methods and subtests are not source-level clinical-accuracy denominators. All fixtures are synthetic, with no patient-identifying data.
 
 ## Scientific reporting protocol
 
