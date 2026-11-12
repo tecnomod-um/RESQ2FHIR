@@ -226,7 +226,13 @@ class SlovakMappingMatrix(unittest.TestCase):
                 row = self.row(OA_TIA=tia, OA_ISCHEMICKA_CMP=stroke)
                 self.assertEqual(expected, row["risk_previous_ischemic_stroke"])
                 self.assertNotIn("risk_tia", row.index)
-                self.assertEqual(expected, row["risk_previous_stroke"])
+                # risk_previous_stroke also combines the hemorrhagic flag.
+                # With an absent hemorrhagic source, False + unknown stays
+                # unknown; a positive ischemic/TIA event still wins.
+                if expected is True:
+                    self.assertEqual(True, row["risk_previous_stroke"])
+                else:
+                    self.assertTrue(pd.isna(row["risk_previous_stroke"]))
 
     def test_combined_prior_event_unknown_does_not_become_negative(self):
         for tia, stroke in ((None, None), (None, "2"), ("2", None)):
