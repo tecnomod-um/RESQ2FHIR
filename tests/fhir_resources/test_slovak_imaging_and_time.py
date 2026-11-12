@@ -18,7 +18,7 @@ class Slovak2024FhirProjectionTests(unittest.TestCase):
 
     def bundle(self, resource):
         return {"resourceType": "Bundle", "type": "transaction",
-                "entry": [{"resource": resource.model_dump(by_alias=True, exclude_none=True)}]}
+                "entry": [{"resource": resource.model_dump(mode="json", by_alias=True, exclude_none=True)}]}
 
     def test_external_ct_is_not_local_completed_event(self):
         procedure = self.imaging(ImagingDone.ELSEWHERE, ImagingType.CT)
