@@ -31,13 +31,17 @@ EXTRA_FIELDS = {
     "provider",
     "provider_id",
     "risk_smoker_last_10_years",
+    "risk_tia",
 }
 
 SUPPORTED_FIELDS = set(base.SUPPORTED_FIELDS) | EXTRA_FIELDS
 
 # All normalized contract fields now have an independently testable target
 # representation or deterministic transformation rule.
-NON_REVERSIBLE_FIELDS: set[str] = set()
+# The NCZI TIA history is now retained separately in the normalized contract.
+# The RES-Q IG still needs a separately adjudicated prior-TIA representation:
+# count these answers as unpreserved rather than silently merging with stroke.
+NON_REVERSIBLE_FIELDS: set[str] = {"risk_tia"}
 
 
 def _organization_candidates(bundle: dict) -> list[dict]:
