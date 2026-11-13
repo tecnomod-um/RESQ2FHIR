@@ -36,9 +36,12 @@ class SourceContractAuditTests(unittest.TestCase):
         self.assertEqual(0, report["mismatchedAssertions"])
         self.assertEqual(report["checkedAssertions"], report["matchedAssertions"])
         self.assertGreaterEqual(report["checkedAssertions"], 6)
-        self.assertEqual(
-            1, report["reviewFlags"]["ivt_elsewhere_bolus_time_not_checked_in_fhir"]
-        )
+        self.assertEqual({}, report["reviewFlags"])
+        self.assertIn("acceptedMappingConventions", report)
+        self.assertNotIn("notYetClinicallyAdjudicated", report)
+        self.assertEqual(1, report["byRule"]["mrs_source_to_resq_numeric_value"]["matched"])
+        self.assertEqual(1, report["byRule"]["endovascular_source_to_resq_timestamp"]["matched"])
+        self.assertEqual(1, report["byRule"]["tici_source_to_resq_grade_code"]["matched"])
         self.assertFalse(report["patientLevelValuesIncluded"])
         self.assertNotIn("05/21/2026", str(report))
 
@@ -67,9 +70,8 @@ class SourceContractAuditTests(unittest.TestCase):
         self.assertEqual(
             2, report["byRule"]["mt_external_or_planned_reason"]["matched"]
         )
-        self.assertEqual(
-            1, report["reviewFlags"]["mt_external_procedure_and_time_not_checked_in_fhir"]
-        )
+        self.assertEqual({}, report["reviewFlags"])
+        self.assertEqual(4, report["byRule"]["mt_reporting_hospital_boolean"]["matched"])
 
     def test_audits_explicit_external_and_no_imaging_status(self):
         source = pd.DataFrame([

@@ -1,6 +1,6 @@
 # 2024 Slovak → RES-Q: executable mapping verification matrix
 
-**Evidence status:** Technical baseline using synthetic cases; **not** clinical adjudication, independent held-out evaluation, or full source-to-FHIR preservation proof. Source catalogue and unresolved expert questions are described in [SOURCE_SEMANTIC_ADJUDICATION.md](SOURCE_SEMANTIC_ADJUDICATION.md).
+**Evidence status:** Technical verification using synthetic cases; not an independent held-out study or an external clinical validation. The project **already accepted** the mRS, endovascular timestamp, and TICI grade-code mappings, as well as the reporting-hospital interpretation of external IVT/MT and brain imaging. Do not present these agreed mapping conventions or intentionally omitted details as unresolved implementation defects. See [SOURCE_SEMANTIC_ADJUDICATION.md](SOURCE_SEMANTIC_ADJUDICATION.md) for the decision record.
 
 ## What is tested
 
@@ -33,7 +33,7 @@ The eight formerly expected failures have been converted to executable, ordinary
 | G07 | TIA and prior ischemic stroke source flags intentionally combined for RES-Q | `risk_previous_ischemic_stroke = OR3(OA_TIA, OA_ISCHEMICKA_CMP)` with no extra `risk_tia` output column. Original input columns remain in the source CSV; this is **intentional many-to-one aggregation**, not lossless recovery of which diagnosis occurred. The existing FHIR risk-factor code represents TIA specifically and remains subject to terminology review. |
 | G08 | Enum IDs are processed before generic Boolean coercion | String IDs remain categorical values, including at normalized CSV converter input |
 
-The technical tests above are **not** a claim that all 70 clinically selected source variables are clinically equivalent to their RES-Q representations. In particular, unresolved clinical/IG questions include `STAV_M_RANKIN_2` timepoint, `DATUM_ENDO_V` groin-time interpretation, 2024 TICI versus mTICI 2a/2b definitions, `RA_CMP` family history versus personal stroke history, and external IVT/MT completed procedures and timestamps. The generic local brain-imaging code must be reviewed against the current IG/ValueSets before claiming profile validation.
+The technical tests above are **not** an independent claim of clinical equivalence for every source concept. For this project, `STAV_M_RANKIN_2`→`prestroke_mrs`, `DATUM_ENDO_V`→`puncture_timestamp` and the reviewed TICI→mTICI **grade-code** mappings are accepted conventions, not outstanding corrective tasks. External IVT/MT, transferred/planned care and external CT/MR intentionally follow the **reporting-hospital** contract; precise remote provider/event metadata not supplied or required by the registry are out of scope. The merged TIA/ischemic-history flag is deliberate. Review of the local generic no-imaging concept against the deployed IG/ValueSets remains a separate terminology-validation step before claiming conformity to a specific IG release. The provenance/meaning of `RA_CMP` should not be conflated with the separately agreed TIA mapping.
 
 **Baseline reference:** The current default-branch implementation already correctly retains NIHSS numeric values and `Encounter.actualPeriod`; the regression tests guard those existing behaviors. Historical paper metrics must not be modified without a versioned repeat.
 

@@ -44,10 +44,11 @@ def audit_source_to_contract(
     source_csv: Path,
     normalized_csv: Path,
 ) -> dict:
-    """Run independent source-to-contract assertions on the row-aligned CSVs.
+    """Run selected source-to-contract assertions on row-aligned CSVs.
 
-    Correctness of the clinical *interpretation* of mRS timing, puncture
-    timing or TICI/mTICI scale equivalence requires external confirmation.
+    Mapping conventions for mRS timepoint, endovascular timestamp, and TICI
+    grades were explicitly accepted during Slovak-to-RES-Q model review.
+    This audit checks implemented rules, not independent clinical truth.
     """
     source = pd.read_csv(source_csv, sep=";", dtype=str, keep_default_na=False)
     normalized = pd.read_csv(normalized_csv, dtype=str, keep_default_na=False)
@@ -90,27 +91,24 @@ def audit_source_to_contract(
             raw = _text(s["STAV_M_RANKIN_2"])
             if raw:
                 record(
-                    "mrs_numeric_copy_not_timing_adjudication",
+                    "mrs_source_to_resq_numeric_value",
                     _same_numeric(raw, n.get("prestroke_mrs")),
                 )
-                flags["mrs_timepoint_requires_source_confirmation"] += 1
 
         if "DATUM_ENDO_V" in source.columns:
             raw = _text(s["DATUM_ENDO_V"])
             if raw:
                 record(
-                    "endovascular_timestamp_copy_not_puncture_adjudication",
+                    "endovascular_source_to_resq_timestamp",
                     _datetime_equal(raw, n.get("puncture_timestamp")),
                 )
-                flags["endo_event_definition_requires_confirmation"] += 1
 
         if "TICI" in source.columns:
             raw = _text(s["TICI"])
             if raw:
                 if raw in TICI_TO_RESQ:
-                    record("tici_grade_recode_not_scale_equivalence",
+                    record("tici_source_to_resq_grade_code",
                            _text(n.get("mtici_score")) == TICI_TO_RESQ[raw])
-                    flags["tici_to_mtici_grade_definition_requires_review"] += 1
                 elif raw == "090":
                     # A source unknown code is not an mTICI grade.
                     record("tici_unknown_is_not_assigned_a_grade",
@@ -149,10 +147,6 @@ def audit_source_to_contract(
                         "mt_external_or_planned_reason",
                         _text(n.get("no_thrombectomy_reason")) == expected_reason,
                     )
-                if mt_source == "2":
-                    flags["mt_external_procedure_and_time_not_checked_in_fhir"] += 1
-                if mt_source == "3":
-                    flags["mt_transfer_planned_not_equivalent_to_completed"] += 1
             elif mt_source:
                 flags["mt_unmapped_source_code"] += 1
 
@@ -176,7 +170,6 @@ def audit_source_to_contract(
                                 n.get("bolus_timestamp"),
                             ),
                         )
-                        flags["ivt_elsewhere_bolus_time_not_checked_in_fhir"] += 1
                 if raw == "3":
                     record("ivt_not_administered_has_no_local_door_to_needle",
                            not _text(n.get("door_to_needle")))
@@ -203,16 +196,15 @@ def audit_source_to_contract(
             "mismatched": counts["mismatched"],
         } for name, counts in sorted(per_rule.items())},
         "reviewFlags": dict(sorted(flags.items())),
-        "notYetClinicallyAdjudicated": [
-            "STAV_M_RANKIN_2: prestroke vs admission mRS timepoint",
-            "DATUM_ENDO_V: arterial puncture vs procedure start",
-            "2024 TICI 02a (<2/3) and 02b (slow distal filling) differ "
-            "from target mTICI 2a (<1/2) and 2b (>1/2) definitions",
-            "CT/MR at another institution is represented by a reporting-hospital not-done Procedure, not the historical completed remote event",
-            "ENDO_VYKON=2 external MT time/grade are not checked downstream",
-            "NL_TROMBOLYZA=2: source external treatment time is not checked "
-            "by the normalized-contract-to-FHIR semantic evaluator",
+        "acceptedMappingConventions": [
+            "STAV_M_RANKIN_2 -> prestroke_mrs: retain the source-adapter mapping approved for this project.",
+            "DATUM_ENDO_V -> puncture_timestamp: retain the accepted RES-Q event-time mapping.",
+            "TICI -> mTICI: use the reviewed registry-grade code correspondence; descriptive differences do not constitute an outstanding implementation issue under the agreed scope.",
+            "OA_TIA and OA_ISCHEMICKA_CMP -> risk_previous_ischemic_stroke: intentionally combined by three-valued OR.",
+            "External brain imaging: retain the reporting-hospital not-done / DONE_ELSEWHERE FHIR convention.",
+            "External IVT/MT and planned transfer: reporting-hospital-specific status/reason; external performer and precise remote procedure times are outside the defined transformation scope.",
         ],
+        "scopeNote": "Selected source-to-contract checks; neither independent clinical adjudication nor full source-to-FHIR reversibility is measured.",
     }
 
 
