@@ -1,6 +1,19 @@
 # Slovak source-to-RES-Q semantic adjudication (RQ1 / M2)
 
-**Status:** Technical checks implemented; clinical adjudication and independent expert review **not yet performed**.
+**Status (project decisions adopted 12 November 2026):** The source-to-RES-Q mapping decisions listed below have been **accepted for this registry transformation** and are not pending corrective work. This is project-level model acceptance, not a claim of independent external clinical adjudication. The subsequent sections retain historical research questions for provenance; where they describe these decisions as "open", the decision record immediately below supersedes that historical wording.
+
+## Agreed resolution of previously reported review flags
+
+| Topic | Agreed resolution / scope |
+| --- | --- |
+| `STAV_M_RANKIN_2` → `prestroke_mrs` | Accept the mapping implemented by the Slovak adapter developers. No new adjudication is required as a condition of completing this implementation. |
+| `DATUM_ENDO_V` → `puncture_timestamp` | Keep the established timestamp interpretation for this contract. Preserve the source event value; do not label this an outstanding defect in the manuscript. |
+| TICI → mTICI | Retain the reviewed grade-code correspondence and corrected target descriptions. Report **registry-grade recoding**, not independent proof of identity between every scale definition. |
+| External IVT/MT and planned transfers | Retain reporting-hospital-specific status and reasons; precise event timing/provider at the other institution is not a required output of this mapping. These are deliberate scope boundaries, not unsolved implementation errors. |
+| CT/MR performed elsewhere | Retain `imaging_done=elsewhere` and the current FHIR reporting-hospital `not-done` / `DONE_ELSEWHERE` convention. Do not invent a particular external hospital. |
+| `OA_TIA` + `OA_ISCHEMICKA_CMP` | Intentionally combine by three-valued OR in the single `risk_previous_ischemic_stroke` RES-Q indicator; source columns remain available for provenance. |
+
+**Reporting instruction:** Do not recycle the six old static `notYetClinicallyAdjudicated` strings or the corresponding aggregate counts as unresolved limitations. The selected source-to-contract audit now reports implementation mismatches, and records accepted conventions separately. It does not assess independent source-term clinical equivalence or generalization to a held-out population.
 
 **Reference implementation:** `scripts/normalization/sk_registry.py`; independent aggregate audit: `scripts/evaluation/source_contract_audit.py`. These source-to-contract assertions complement but do not replace `scripts/evaluation/semantic_preservation_full.py`, which evaluates **normalized contract → serialized transaction FHIR**.
 
